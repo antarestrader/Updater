@@ -1,0 +1,16 @@
+#!/usr/bin/env ruby
+
+puts "starting update deamon..."
+
+require 'rubygems'
+require 'yaml'
+
+dbconfig = YAML.load_file('config/database.yml')
+
+DataMapper.setup(dbconfig['development'])
+
+require File.join( File.dirname(__FILE__),'..','lib',  "updater" )
+
+Updater.current.each {|u| u.run}
+
+
