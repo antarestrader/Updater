@@ -2,7 +2,7 @@
 
 Gem::Specification.new do |s|
   s.name = %q{updater}
-  s.version = "0.1.0"
+  s.version = "0.1.1"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["John F. Miller"]
@@ -10,7 +10,7 @@ Gem::Specification.new do |s|
   s.description = %q{Plugin for the delayed calling of methods particularly DataMapper model instance and class methods.}
   s.email = %q{emperor@antarestrader.com}
   s.extra_rdoc_files = ["README", "LICENSE", "VERSION"]
-  s.files = ["LICENSE", "README", "Rakefile", "VERSION", "lib/updater.rb", "lib/updater", "lib/updater/tasks.rb", "spec/update_spec.rb", "spec/spec_helper.rb", "spec/factories.rb", "bin/updater"]
+  s.files = ["LICENSE", "README", "Rakefile", "VERSION", "lib/updater.rb", "lib/updater", "lib/updater/tasks.rb", "spec/update_spec.rb", "spec/spec_helper.rb", "bin/updater"]
   s.has_rdoc = true
   s.homepage = %q{http://blog.antarestrader.com}
   s.require_paths = ["lib"]
