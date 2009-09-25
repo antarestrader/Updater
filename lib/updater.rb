@@ -20,7 +20,7 @@ class Updater
   property :name, String
   
   #will be called if an error occurs
-  belongs_to :failure, :class_name=>'Updater', :child_key=>[:failure_id]
+  belongs_to :failure, :class_name=>'Updater', :child_key=>[:failure_id], :nullable=>true
   
   # Returns the Class or instance that will recieve the method call.  See +Updater.at+ for 
   # information about how a target is derived.
