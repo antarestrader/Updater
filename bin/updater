@@ -12,8 +12,7 @@ dbconfig = YAML.load_file('config/database.yml')
 
 DataMapper.setup(dbconfig['development'])
 
-
-
+Worker.new.start
 
 
 
