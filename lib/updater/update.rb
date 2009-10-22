@@ -208,6 +208,9 @@ module Updater
       #Gets a single gob form the queue, locks and runs it.
       def work_off(worker)
         updates = worker_set
+        if updates.empty?
+          return queue_time
+        end
         
         #concept copied form delayed_job.  If there are a number of 
         #different processes working on the queue, the niave approch

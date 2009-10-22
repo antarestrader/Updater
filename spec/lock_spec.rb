@@ -68,6 +68,14 @@ describe "Update Locking:" do
     
   end
   
-  it "#clear_locks should lear all locks from a worker"
+  it "#clear_locks should clear all locks from a worker" do
+    @v = Update.immidiate(Foo,:bar,[:arg1,:arg2])
+    @u.lock(@w)
+    @v.lock(@w)
+    @u.locked?.should be_true
+    @w.clear_locks
+    @u.reload.locked?.should be_false
+    @v.reload.locked?.should be_false
+  end
   
 end

@@ -24,8 +24,9 @@ module Updater
           delay = Update.work_off(self)
           break if $exit
           sleep delay
-          break if exit
+          break if $exit
         end
+        clear_locks
       end
       
       trap('TERM') { terminate_with t }
@@ -44,6 +45,10 @@ module Updater
       logger.info text if logger      
     end
     
+    def clear_locks
+      Update.all(:lock_name=>@name).update(:lock_name=>nil) 
+    end
+    
   private
   
     def terminate_with(t)
@@ -51,11 +56,9 @@ module Updater
       $exit = true
       t.run
       say "Forcing Shutdown" unless status = t.join(15) #Nasty inline assignment
-      Update.clear_locks(self)
+      clear_locks
       exit status ? 0 : 1
     end
-    
-    
   end
   
 end

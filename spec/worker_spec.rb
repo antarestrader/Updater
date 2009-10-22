@@ -60,7 +60,11 @@ describe "working off jobs:" do
       Update.work_off(Worker.new(:name=>"first", :quiet=>true)).should == 0
     end
     
-    it "should return the number of seconds till the next job if there are no jobs to be run"
+    it "should return the number of seconds till the next job if there are no jobs to be run" do
+      Timecop.freeze(Time.now)
+      u1 = Update.at(Time.now + 30, Foo,:bar,[:arg1])
+      Update.work_off(Worker.new(:name=>"first", :quiet=>true)).should == 30
+    end
     
     it "should return nil if the job queue is empty" do
       u1 = Update.immidiate(Foo,:bar,[:arg1])
