@@ -131,6 +131,11 @@ module Updater
         hash[:finder] = finder || :get
         hash[:time] = time
         create(hash.merge(options))
+        Process.kill('USR1',pid) if pid
+      rescue Errno::ESRCH
+        @pid = nil
+        puts "PID invalid"
+        #log this as well
       end
       
       # like +at+ but with time as time.now.  Generally this will be used to run a long running operation in
@@ -192,12 +197,32 @@ module Updater
         all(:time.gt=>time.now.to_i)
       end
       
+      #Sets the process id of the worker process if known.  If this 
+      #is set then an attempt will be made to signal the worker any
+      #time a new update is made.
+      #
+      #If pid is not set, or is set to nil then the scheduleing program 
+      #is responcible for waking-up a potentially sleeping worker process
+      #in another way.
+      def pid=(p)
+        return @pid = nil unless p #tricky assignment in return
+        @pid = Integer("#{p}")
+        Process::kill 0, @pid
+        @pid
+      rescue Errno::ESRCH, ArgumentError
+        raise ArgumentError "PID was invalid"
+      end
+      
+      def pid
+        @pid
+      end
+      
       #This returns a set of update requests.
       #The first parameter is the maximum number to return (get a few other workers may be in compitition)
       #The second optional parameter is a list of options to be past to DataMapper.
       def worker_set(limit = 5, options={})
         #TODO: add priority to this.
-        options = {:limit=>limit, :order=>[:time.desc]}.merge(options)
+        options = {:limit=>limit, :order=>[:time.asc]}.merge(options)
         current.all(options)
       end
       
@@ -225,7 +250,7 @@ module Updater
       end
       
       def queue_time
-        nxt = self.first(:time.not=>nil, :order=>[:time.desc])
+        nxt = self.first(:time.not=>nil, :order=>[:time.asc])
         return nil unless nxt
         return 0 if nxt.time <= time.now.to_i
         return nxt.time - time.now.to_i

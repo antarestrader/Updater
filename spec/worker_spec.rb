@@ -17,6 +17,43 @@ describe Worker do
     Worker.new.name.should be_a String
   end
   
+  describe "loop thread control:" do
+    
+    class Foo
+      include DataMapper::Resource
+      
+      property :id, Serial
+      property :name, String
+      
+      def bar(*args)
+        Foo.bar(:instance,*args)
+      end
+      
+    end
+    
+    Foo.auto_migrate!
+    
+    specify "The loop should run when the worker is started" do
+      pending
+      worker = Worker.new(:quiet=>true, :name=>"testing")
+      Update.should_receive(:work_off).with(worker).once.and_return(nil)
+      t = Thread.new do
+        worker.start
+      end
+      t.run
+      worker.stop
+      t.kill unless t.join(0.1) #you've got 0.1 seconds to finish or die
+    end
+    
+    specify "The loop should run with USR1 signal" do
+      pending
+      t = Thread.new do
+        worker.start
+      end
+    end
+    
+  end
+  
 end
 
 describe "working off jobs:" do
@@ -63,6 +100,8 @@ describe "working off jobs:" do
     it "should return the number of seconds till the next job if there are no jobs to be run" do
       Timecop.freeze(Time.now)
       u1 = Update.at(Time.now + 30, Foo,:bar,[:arg1])
+      Update.at(Time.now + 35, Foo,:bar,[:arg1])
+      Update.at(Time.now + 1000, Foo,:bar,[:arg1])
       Update.work_off(Worker.new(:name=>"first", :quiet=>true)).should == 30
     end
     
