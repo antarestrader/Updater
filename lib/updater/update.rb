@@ -12,7 +12,7 @@ module Updater
     property :ident, Yaml
     property :method, String
     property :finder, String
-    property :args, Object
+    property :args, Object, :lazy=>false
     property :time, Integer
     property :name, String
     property :lock_name, String
@@ -130,8 +130,9 @@ module Updater
         hash[:ident] = ident_for(target,finder,finder_args)
         hash[:finder] = finder || :get
         hash[:time] = time
-        create(hash.merge(options))
+        ret = create(hash.merge(options))
         Process.kill('USR1',pid) if pid
+        ret
       rescue Errno::ESRCH
         @pid = nil
         puts "PID invalid"
@@ -222,7 +223,7 @@ module Updater
       #The second optional parameter is a list of options to be past to DataMapper.
       def worker_set(limit = 5, options={})
         #TODO: add priority to this.
-        options = {:limit=>limit, :order=>[:time.asc]}.merge(options)
+        options = {:lock_name=>nil,:limit=>limit, :order=>[:time.asc]}.merge(options)
         current.all(options)
       end
       
@@ -233,24 +234,28 @@ module Updater
       #Gets a single gob form the queue, locks and runs it.
       def work_off(worker)
         updates = worker_set
-        if updates.empty?
-          return queue_time
+        unless updates.empty?
+          #concept copied form delayed_job.  If there are a number of 
+          #different processes working on the queue, the niave approch
+          #would result in every instance trying to lock the same record.
+          #by shuffleing our results we greatly reduce the chances that
+          #multilpe workers try to lock the same process
+          updates = updates.to_a.sort_by{rand()}
+          updates.each do |u|
+            t = u.run_with_lock(worker)
+            break unless nil == t
+          end
         end
-        
-        #concept copied form delayed_job.  If there are a number of 
-        #different processes working on the queue, the niave approch
-        #would result in every instance trying to lock the same record.
-        #by shuffleing our results we greatly reduce the chances that
-        #multilpe workers try to lock the same process
-        updates = updates.to_a.sort_by{rand()}
-        updates.each do |u|
-          t = u.run_with_lock(worker)
-          return queue_time unless nil == t
-        end
+      rescue DataObjects::ConnectionError
+        sleep 0.1
+        retry
+      ensure
+        worker.clear_locks
+        return queue_time
       end
       
       def queue_time
-        nxt = self.first(:time.not=>nil, :order=>[:time.asc])
+        nxt = self.first(:time.not=>nil,:lock_name=>nil, :order=>[:time.asc])
         return nil unless nxt
         return 0 if nxt.time <= time.now.to_i
         return nxt.time - time.now.to_i

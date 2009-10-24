@@ -26,7 +26,6 @@ module Updater
       
       trap('USR1') do
         old_proc = trap('USR1','IGNORE')
-        say "Wakeup Signal Caught"
         run_loop
         trap('USR1',old_proc)
       end
@@ -64,14 +63,20 @@ module Updater
     def run_job_loop
       Thread.new do
         loop do
-          delay = Update.work_off(self)
-          break if $exit
-          if delay 
-            sleep delay 
-          else
-            sleep
+          begin
+            delay = Update.work_off(self)
+            break if $exit
+            if delay 
+              sleep delay 
+            else
+              sleep
+            end
+            break if $exit
+          rescue
+            say "Caught exception in Job Loop"
+            sleep 0.1
+            retry
           end
-          break if $exit
         end
         say "Worker thread exiting!"
         clear_locks
