@@ -52,7 +52,7 @@ module Updater
     
     def run_loop
       if @t.alive?
-        @t.run
+        @t.wakeup #calling run here is a Bad Idea
       else
         say " ~~ Restarting Job Loop"
         @t = run_job_loop
