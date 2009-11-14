@@ -6,7 +6,7 @@ require 'benchmark'
 module Updater
 
   #This class repeatedly searches the database for active jobs and runs them
-  class Worker
+  class ThreadWorker
     cattr_accessor :logger
     attr_accessor :pid
     attr_accessor :name
@@ -39,11 +39,7 @@ module Updater
       puts text unless @quiet
       logger.info text if logger      
     end
-    
-    def clear_locks
-      Update.all(:lock_name=>@name).update(:lock_name=>nil) 
-    end
-    
+
     def stop
       raise RuntimeError unless @t
       terminate_with @t
@@ -79,7 +75,7 @@ module Updater
           end
         end
         say "Worker thread exiting!"
-        clear_locks
+        Update.clear_locks(self)
       end
     end
   
@@ -88,7 +84,7 @@ module Updater
       $exit = true
       t.run if t.alive?
       say "Forcing Shutdown" unless status = t.join(15) #Nasty inline assignment
-      clear_locks
+      Update.clear_locks(self)
       exit status ? 0 : 1
     end
   end

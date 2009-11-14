@@ -39,6 +39,13 @@ end
 
 Spec::Rake::SpecTask.new do |t|
   t.warning = false
+  t.rcov = false
+end
+
+Spec::Rake::SpecTask.new do |t|
+  t.name="rcov"
+  t.warning = false
+  t.rcov = true
 end
 
 desc "run all tests"

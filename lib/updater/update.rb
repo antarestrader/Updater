@@ -250,7 +250,7 @@ module Updater
         sleep 0.1
         retry
       ensure
-        worker.clear_locks
+        clear_locks(worker)
         return queue_time
       end
       
@@ -261,7 +261,9 @@ module Updater
         return nxt.time - time.now.to_i
       end
       
-      
+      def clear_locks(worker)
+        all(:lock_name=>worker.name).update(:lock_name=>nil)
+      end
       
     private
       

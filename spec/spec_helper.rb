@@ -7,7 +7,8 @@ require "spec" # Satisfies Autotest and anyone else not using the Rake tasks
 require "dm-core"
 
 require 'updater'
-require 'updater/worker'
+require 'updater/thread_worker'
+require 'updater/fork_worker'
 
 DataMapper.setup(:default, 'sqlite3::memory:')
 DataMapper.auto_migrate!

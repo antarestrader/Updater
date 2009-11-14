@@ -18,6 +18,21 @@ describe "Update Locking:" do
   
   Foo.auto_migrate!
   
+  class Worker
+    attr_accessor :pid
+    attr_accessor :name
+    
+    def initialize(options={})
+      @quiet = options[:quiet]
+      @name = options[:name] || "host:#{Socket.gethostname} pid:#{Process.pid}" rescue "pid:#{Process.pid}"
+      @pid = Process.pid
+    end
+    
+    def say(_)
+      nil
+    end
+  end    
+  
   before :each do
     @u = Update.immidiate(Foo,:bar,[])
     @w = Worker.new(:name=>"first", :quiet=>true)
@@ -73,7 +88,7 @@ describe "Update Locking:" do
     @u.lock(@w)
     @v.lock(@w)
     @u.locked?.should be_true
-    @w.clear_locks
+    Update.clear_locks(@w)
     @u.reload.locked?.should be_false
     @v.reload.locked?.should be_false
   end
