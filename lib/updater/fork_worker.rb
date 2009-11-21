@@ -17,17 +17,30 @@ module Updater
                    :TTIN, :TTOU ]
       
       attr_accessor :logger
+      attr_reader :timeout, :pipe
       
       def initial_setup(options)
         @max_workers = options[:workers] || 1
-        @timeout = 30*60
+        @timeout = options[:timout] || 60
         @current_workers = 1
         @workers = {} #key is pid value is worker class
+        
+        # Used to wakeup master process 
+        if @self_pipe !=nil
+          @self_pipe.each {|io| io.close}
+        end
+        @self_pipe = IO.pipe
+        @wakeup_set = [@self_pipe.first]
+        @wakeup_set += [options[:sockets]].flatten.compact
+        
+        #Communicate with Workers
         if @pipe != nil
           @pipe.each {|io| io.close}
         end
-        @pipe = IO.pipe #communicate with Workers
+        @pipe = IO.pipe
+        
         @signal_queue = []
+        
         unless logger
           require 'logger'
           @logger = Logger.new(STDOUT)
@@ -39,6 +52,7 @@ module Updater
         case @signal_queue.shift
           when nil #routeen maintance
             murder_lazy_workers
+            antisipate_workload
             maintain_worker_count
             master_sleep
             true
@@ -64,6 +78,8 @@ module Updater
       # Options:
       # * :workers : the maximum number of worker threads
       # * :timeout : how long can a worker be inactive before being killed
+      # * :sockets: 0 or more IO objects that should wake up master to alert it that new data is availible
+      
       def start(stream,options = {})
         initial_setup(options)
         @stream = stream
@@ -99,11 +115,22 @@ module Updater
       end
       
       def master_sleep
-        
+        begin
+          ready, _1, _2 = IO.select(@wakeup_set, nil, nil, 2*@timeout)
+          return unless ready && ready.first #just wakeup and run maintance
+          @signal_queue << :DATA unless ready.first == @self_pipe.first #somebody wants our attention
+          loop {ready.first.read_nonblock(16 * 1024)}
+        rescue Errno::EAGAIN, Errno::EINTR
+        end
       end
       
       def awaken_master
-        
+        begin
+          @self_pipe.last.write_nonblock('.') # wakeup master process from select
+        rescue Errno::EAGAIN, Errno::EINTR
+          # pipe is full, master should wake up anyways
+          retry
+        end
       end
       
       def queue_signal(signal)
@@ -119,6 +146,12 @@ module Updater
         trap(signal) do |sig|
           queue_signal(signal)
         end
+      end
+      
+      # this method determins how many workers should exist based on the known future load
+      # and sets @current_workers accordingly
+      def antisipate_workload
+        
       end
       
       def maintain_worker_count
@@ -139,9 +172,19 @@ module Updater
       def add_worker(worker_number)
         worker = WorkerMonitor.new(worker_number,Updater::Util.tempio)
         pid = Process.fork do
+          fork_cleanup
           self.new(@pipe,worker).run
         end
         @workers[pid] = worker
+      end
+      
+      def fork_cleanup
+        if @self_pipe !=nil
+          @self_pipe.each {|io| io.close}
+        end
+        @workers = nil
+        @worker_set = nil
+        @signal_queue = nil
       end
       
       def signal_each_worker(signal)
@@ -191,6 +234,7 @@ module Updater
       pipe.last.close
       @heartbeat = worker.heartbeat
       @number = worker.number
+      @timeout = slef.class.timeout
       @m = 0 #uesd for heartbeat
     end
     
@@ -214,8 +258,35 @@ module Updater
       Update.clear_locks(self)
     end
     
+    def name
+      "Fork Worker #{@number}"
+    end
+    
     def wait_for(delay)
+      if delay <= 0 #mor jobs are immidiatly availible
+        smoke_pipe(@stream)
+        return
+      end
       
+      #need to wait for another job
+      t = Time.now + delay
+      while Time.now < t
+        delay = [@timeout,Time.now - t]
+        wakeup,_1,_2 = select([@stream],nil,nil,delay)
+        heartbeat
+        if wakeup
+          return if smoke_pipe(wakeup.first)
+        end
+      end
+    end
+    
+    # tries to pull a single charictor from the pipe (representing accepting one new job)
+    # returns true if it succeeds, false otherwise
+    def smoke_pipe(pipe)
+      wakeup.first.read_nonblock(1) #each char in the string represents a new job 
+      true
+    rescue Errno::EAGAIN, Errno::EINTR
+      false
     end
     
     def heartbeat

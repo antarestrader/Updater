@@ -218,6 +218,10 @@ module Updater
         @pid
       end
       
+      ####################
+      # Worker Functions #
+      ####################
+      
       #This returns a set of update requests.
       #The first parameter is the maximum number to return (get a few other workers may be in compitition)
       #The second optional parameter is a list of options to be past to DataMapper.
@@ -226,12 +230,8 @@ module Updater
         options = {:lock_name=>nil,:limit=>limit, :order=>[:time.asc]}.merge(options)
         current.all(options)
       end
-      
-      ####################
-      # Worker Functions #
-      ####################
-      
-      #Gets a single gob form the queue, locks and runs it.
+
+      #Gets a single job form the queue, locks and runs it.
       def work_off(worker)
         updates = worker_set
         unless updates.empty?
