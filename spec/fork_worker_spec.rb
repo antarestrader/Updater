@@ -215,8 +215,9 @@ describe ForkWorker do
       end
       
       it "should also add ':DATA' to queue when a stream other then self_pipe is ready." do
-        pending "Testing Error  stream not raising error?"
-        stream = stub('Extern IO').should_receive(:read_nonblock).and_raise(Errno::EAGAIN)
+        # pending "Testing Error  stream not raising error?"
+        stream = stub('Extern IO')
+        stream.should_receive(:read_nonblock).and_raise(Errno::EAGAIN)
         IO.should_receive(:select).and_return([[stream],[],[]])
         ForkWorker.master_sleep.should be_nil
         ForkWorker.instance_variable_get(:@signal_queue).should include(:DATA)
