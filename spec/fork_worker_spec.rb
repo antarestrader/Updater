@@ -69,7 +69,9 @@ describe ForkWorker do
     end
     
     it "should run a new worker instance in a fork" do
+      ForkWorker.instance_variable_set :@workers, {}
       Process.should_receive(:fork).with(no_args()).and_yield.and_return(1234)
+      ForkWorker.should_receive(:fork_cleanup).and_return(nil) #
       ForkWorker.should_receive(:new).with(anything(),duck_type(:number,:heartbeat)).and_return(stub("Worker",:run=>nil))
       ForkWorker.add_worker(1)
     end
@@ -119,7 +121,7 @@ describe ForkWorker do
       end
     end
     
-    it "should set workers setto empty" do
+    it "should set workers set to empty" do
       ForkWorker.initial_setup({})
       ForkWorker.instance_variable_get(:@workers).should be_empty
     end
@@ -190,6 +192,40 @@ describe ForkWorker do
     end
   
   end
+
+  describe "Master loop control" do
+    
+    before(:each) do
+      ForkWorker.initial_setup({})
+    end
+  
+    describe "#master_sleep" do
+      
+      it "should return to run maintance if there is no signal" do
+        IO.should_receive(:select).and_return(nil)
+        ForkWorker.master_sleep.should be_nil
+        ForkWorker.instance_variable_get(:@signal_queue).should be_empty
+      end
+      
+      it "should return if there is data on self_pipe" do
+        self_pipe = ForkWorker.instance_variable_get(:@self_pipe)
+        IO.should_receive(:select).and_return([[self_pipe.first],[],[]])
+        ForkWorker.master_sleep.should be_nil
+        ForkWorker.instance_variable_get(:@signal_queue).should be_empty
+      end
+      
+      it "should also add ':DATA' to queue when a stream other then self_pipe is ready." do
+        pending "Testing Error  stream not raising error?"
+        stream = stub('Extern IO').should_receive(:read_nonblock).and_raise(Errno::EAGAIN)
+        IO.should_receive(:select).and_return([[stream],[],[]])
+        ForkWorker.master_sleep.should be_nil
+        ForkWorker.instance_variable_get(:@signal_queue).should include(:DATA)
+      end
+      
+    end
+
+  end
+  
   
   [true,false].each do |graceful|
     
