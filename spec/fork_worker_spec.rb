@@ -61,6 +61,10 @@ describe ForkWorker do
   
   describe "#add_worker" do
     
+    before :each do
+      ForkWorker.initial_setup({})
+    end
+    
     it "should add the new worker to the set" do
       Process.stub!(:fork).and_return(1234)
       ForkWorker.add_worker(1)

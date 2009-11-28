@@ -20,8 +20,17 @@ module Updater
       attr_reader :timeout, :pipe
       
       def initial_setup(options)
+        unless logger
+          require 'logger'
+          @logger = Logger.new(STDOUT)
+          @logger.level = Logger::WARN
+        end
+        logger.info "***Setting Up Master Process***"
+        
         @max_workers = options[:workers] || 1
+        logger.info "Max Workers set to #{@max_workers}"
         @timeout = options[:timout] || 60
+        logger.info "Timeout set to #{@timeout} sec."
         @current_workers = 1
         @workers = {} #key is pid value is worker class
         
@@ -41,16 +50,14 @@ module Updater
         
         @signal_queue = []
         
-        unless logger
-          require 'logger'
-          @logger = Logger.new(STDOUT)
-          @logger.level = Logger::WARN
-        end
+        
       end
       
       def handle_signal_queue
+        logger.debug { "Handeling Signal Queue: queue first = #{@signal_queue.first}" }
         case @signal_queue.shift
           when nil #routeen maintance
+            logger.debug "Running Routeen Maintance"
             murder_lazy_workers
             antisipate_workload
             maintain_worker_count
@@ -81,15 +88,19 @@ module Updater
       # * :sockets: 0 or more IO objects that should wake up master to alert it that new data is availible
       
       def start(stream,options = {})
-        initial_setup(options)
+        initial_setup(options) #need this for logger
+        logger.info "*** Starting Master Process***"
         @stream = stream
+        logger.info "* Adding the first round of workers *"
         maintain_worker_count
         QUEUE_SIGS.each { |sig| trap_deferred(sig) }
         trap(:CHLD) { |sig_nr| awaken_master }
-        logger.info "master process ready"
+        logger.info "** Signal Traps Ready **"
+        logger.info "** master process ready  **"
         begin
           continue = true
           while continue do
+            logger.debug "Master Process Awake" 
             reap_all_workers
             continue = handle_signal_queue
           end
@@ -101,7 +112,7 @@ module Updater
           retry
         end
         stop # gracefully shutdown all workers on our way out
-        logger.info "master process finished"
+        logger.info "master process Exiting"
       end
       
       def stop(graceful = true)
@@ -116,6 +127,7 @@ module Updater
       
       def master_sleep
         begin
+          logger.debug { "Sleeping for #{2*@timeout}" }
           ready, _1, _2 = IO.select(@wakeup_set, nil, nil, 2*@timeout)
           return unless ready && ready.first #just wakeup and run maintance
           @signal_queue << :DATA unless ready.first == @self_pipe.first #somebody wants our attention
@@ -142,7 +154,7 @@ module Updater
         end
       end
       
-      def trap_defered(signal)
+      def trap_deferred(signal)
         trap(signal) do |sig|
           queue_signal(signal)
         end
@@ -176,6 +188,7 @@ module Updater
           self.new(@pipe,worker).run
         end
         @workers[pid] = worker
+        logger.info "Added Worker #{worker.number}: pid=>#{pid}"
       end
       
       def fork_cleanup
@@ -234,7 +247,7 @@ module Updater
       pipe.last.close
       @heartbeat = worker.heartbeat
       @number = worker.number
-      @timeout = slef.class.timeout
+      @timeout = self.class.timeout
       @m = 0 #uesd for heartbeat
     end
     
@@ -242,15 +255,16 @@ module Updater
     def run
       heartbeat
       @continue = true
-      setup_traps
+      #setup_traps
       while @continue do
         heartbeat
         begin
           delay = Update.work_off(self)
           heartbeat
           wait_for(delay)
-        rescue
+        rescue Exception=> e
           say "Caught exception in Job Loop"
+          raise e
           sleep 0.1
           retry
         end
@@ -258,12 +272,21 @@ module Updater
       Update.clear_locks(self)
     end
     
+    def logger
+      nil
+    end
+    
+    def say(text)
+      puts text unless @quiet
+      logger.info text if logger      
+    end
+    
     def name
       "Fork Worker #{@number}"
     end
     
     def wait_for(delay)
-      if delay <= 0 #mor jobs are immidiatly availible
+      if delay <= 0 #more jobs are immidiatly availible
         smoke_pipe(@stream)
         return
       end
@@ -271,7 +294,7 @@ module Updater
       #need to wait for another job
       t = Time.now + delay
       while Time.now < t
-        delay = [@timeout,Time.now - t]
+        delay = [@timeout,Time.now - t].min
         wakeup,_1,_2 = select([@stream],nil,nil,delay)
         heartbeat
         if wakeup
@@ -283,7 +306,7 @@ module Updater
     # tries to pull a single charictor from the pipe (representing accepting one new job)
     # returns true if it succeeds, false otherwise
     def smoke_pipe(pipe)
-      wakeup.first.read_nonblock(1) #each char in the string represents a new job 
+      pipe.first.read_nonblock(1) #each char in the string represents a new job 
       true
     rescue Errno::EAGAIN, Errno::EINTR
       false
