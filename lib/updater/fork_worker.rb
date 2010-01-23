@@ -12,6 +12,10 @@ module Updater
       end
     end
     
+    #######
+    # BEGIN Class Methods
+    #######
+    
     class <<self
       QUEUE_SIGS = [:QUIT, :INT, :TERM, :USR1, :USR2, :HUP,
                    :TTIN, :TTOU ]
@@ -26,14 +30,14 @@ module Updater
           @logger.level = Logger::WARN
         end
         logger.info "***Setting Up Master Process***"
-        
-        @max_workers = options[:workers] || 1
+        @max_workers = options[:workers] || 3
         logger.info "Max Workers set to #{@max_workers}"
-        @timeout = options[:timout] || 60
+        @timeout = options[:timeout] || 60
         logger.info "Timeout set to #{@timeout} sec."
         @current_workers = 1
         @workers = {} #key is pid value is worker class
-        
+        @uptime = Time.now
+        @downtime = Time.now
         # Used to wakeup master process 
         if @self_pipe !=nil
           @self_pipe.each {|io| io.close}
@@ -74,8 +78,10 @@ module Updater
             true
           when :TTIN
             @max_workers += 1
+            logger.warn "Maximum workers: #{@max_workers}"
           when :TTOU
             (@max_workers -= 1) < 1 and @max_workers = 1
+            logger.warn "Maximum workers: #{@max_workers}"
             true
           else
             :noop
@@ -88,6 +94,8 @@ module Updater
       # * :sockets: 0 or more IO objects that should wake up master to alert it that new data is availible
       
       def start(stream,options = {})
+        logger.info "=== ForkWorker Start ==="
+        logger.info "    Pid = #{Process.pid}"
         initial_setup(options) #need this for logger
         logger.info "*** Starting Master Process***"
         @stream = stream
@@ -98,24 +106,31 @@ module Updater
         logger.info "** Signal Traps Ready **"
         logger.info "** master process ready  **"
         begin
+          error_count = 0
           continue = true
           while continue do
             logger.debug "Master Process Awake" 
             reap_all_workers
             continue = handle_signal_queue
+            error_count = 0
           end
         rescue Errno::EINTR
           retry
         rescue Object => e
           logger.error "Unhandled master loop exception #{e.inspect}."
           logger.error e.backtrace.join("\n")
-          retry
+          error_count += 1
+          retry unless error_count > 10
+          logger.fatal "10 consecutive errors! Abandoning Master process"
         end
         stop # gracefully shutdown all workers on our way out
         logger.info "master process Exiting"
       end
       
       def stop(graceful = true)
+        trap(:USR2,"IGNORE")
+        [:INT,:TERM].each {|signal| trap(signal,"DEFAULT") }
+        puts "Quitting. I need 30 seconds to stop my workers..."
         limit = Time.now + 30
         signal_each_worker(graceful ? :QUIT : :TERM)
         until @workers.empty? || Time.now > limit
@@ -127,13 +142,18 @@ module Updater
       
       def master_sleep
         begin
-          logger.debug { "Sleeping for #{2*@timeout}" }
-          ready, _1, _2 = IO.select(@wakeup_set, nil, nil, 2*@timeout)
+          timeout = calc_timeout
+          logger.debug { "Sleeping for #{timeout}" } #TODO return to debug 
+          ready, _1, _2 = IO.select(@wakeup_set, nil, nil, timeout)
           return unless ready && ready.first #just wakeup and run maintance
           @signal_queue << :DATA unless ready.first == @self_pipe.first #somebody wants our attention
           loop {ready.first.read_nonblock(16 * 1024)}
         rescue Errno::EAGAIN, Errno::EINTR
         end
+      end
+      
+      def calc_timeout
+        Time.now - [@uptime, @downtime].max < @timeout ? @timeout / 8 : 2*@timeout
       end
       
       def awaken_master
@@ -150,7 +170,7 @@ module Updater
           @signal_queue << signal
           awaken_master
         else
-          logger.error "ignoring SIG#{signal}, queue=#{SIG_QUEUE.inspect}"
+          logger.error "ignoring SIG#{signal}, queue=#{@signal_queue.inspect}"
         end
       end
       
@@ -163,7 +183,26 @@ module Updater
       # this method determins how many workers should exist based on the known future load
       # and sets @current_workers accordingly
       def antisipate_workload
+        load = Update.current.count
+        antisipated = Update.future(2*@timeout).count
+        if (load > @current_workers && 
+            @current_workers < @max_workers && 
+            (Time.now - (@downtime || 0)).to_i > 5 &&
+            (Time.now-(@uptime||0.0)).to_i > 1)
+          @current_workers += 1
+          @uptime = Time.now
+        end
         
+        if  (load + antisipated + 1 < @current_workers &&
+             (Time.now-(@uptime||0.0)).to_i > 60 &&
+             (Time.now - (@downtime || 0)).to_i > 5)
+          @current_workers -= 1
+          @downtime = Time.now
+        end
+        
+        if @current_workers > @max_workers
+          @current_workers = @max_workers
+        end
       end
       
       def maintain_worker_count
@@ -192,6 +231,7 @@ module Updater
       end
       
       def fork_cleanup
+        QUEUE_SIGS.each { |signal| trap(signal,"IGNORE") }
         if @self_pipe !=nil
           @self_pipe.each {|io| io.close}
         end
@@ -221,7 +261,7 @@ module Updater
             next
           end
           (diff = (Time.now - stat.ctime)) <= @timeout and next
-          logger.error "worker=#{worker.nr} PID:#{wpid} timeout " \
+          logger.error "worker=#{worker.number} PID:#{wpid} timeout " \
                        "(#{diff}s > #{@timeout}s), killing"
           signal_worker(:KILL, wpid) # take no prisoners for timeout violations
         end
@@ -229,6 +269,7 @@ module Updater
       
       def remove_worker(wpid)
         worker = @workers.delete(wpid) and worker.heartbeat.close rescue nil
+        logger.debug { "removing dead worker #{worker.number}" }
       end
       
       def reap_all_workers
@@ -240,14 +281,27 @@ module Updater
       rescue Errno::ECHILD
       end
     
-    end
+    end #class << self
+
+    #
+    #
+    ##################################################
+    # BEGIN Instacne methods
+    ##################################################
+    #
+    #
+    #
+    
+    attr_accessor :logger
+    attr_reader :number
     
     def initialize(pipe,worker)
       @stream = pipe.first
-      pipe.last.close
+      @pipe = pipe  #keep this so signals will wake things up
       @heartbeat = worker.heartbeat
       @number = worker.number
       @timeout = self.class.timeout
+      @logger = self.class.logger
       @m = 0 #uesd for heartbeat
     end
     
@@ -255,13 +309,23 @@ module Updater
     def run
       heartbeat
       @continue = true
-      #setup_traps
+      trap(:QUIT) do 
+        say "#{name} caught QUIT signal.  Dieing gracefully"
+        @continue = false 
+        @pipe.last.write '.'
+        trap(:QUIT,"IGNORE")
+      end
+      trap(:TERM) { Update.clear_locks(self); exit }
       while @continue do
         heartbeat
         begin
           delay = Update.work_off(self)
           heartbeat
-          wait_for(delay)
+          puts Update.time.now
+          wait_for(delay) if @continue
+        rescue DataObjects::ConnectionError
+          sleep 0.1
+          retry
         rescue Exception=> e
           say "Caught exception in Job Loop"
           raise e
@@ -272,29 +336,64 @@ module Updater
       Update.clear_locks(self)
     end
     
-    def logger
-      nil
+    def say(text)
+      puts text unless @quiet || logger
+      logger.info text if logger      
     end
     
-    def say(text)
-      puts text unless @quiet
-      logger.info text if logger      
+    #we need this because logger may be set to nil
+    def debug(text = nil)
+      text = yield if block_given? && logger && logger.level == 0
+      logger.debug text if logger      
     end
     
     def name
       "Fork Worker #{@number}"
     end
     
+    # Let's Talk.  This function was refactored out of #run because it is the most complex piece of functionality
+    # in the loop and needed to be tested.  #run is difficult to test because it never returns.  There is a great
+    # deal of straitagity here.  This function ultimate job is to suspend the worker process for as long as possible.
+    # In doing so it saves the system resources.  Waiting too long will cause catistrophic, cascading failure under
+    # even moderate load, while not waiting long enough will waist system resources under light load, reducing
+    # the ability to use the system for other things.
+    #
+    # There are a number of factors that determin the amount of time to wait.  The simplest is this: if there are
+    # still jobs in the queue that can be run then this function needs to be as close to a NOOP as possible. Every
+    # delay is inviting more jobs to pile up before they can be run.  The Job running code returns the number of
+    # seconds until the next job is availible.  When it retruns 0 the system is under active load and jobs need to
+    # be worked without delay.
+    #
+    # On the other hand when the next job is some non-negitive number of seconds away the ideal behavior
+    # would be to wait until it is ready then run the next job the wake and run it.  There are two difficulties here
+    # the first is the need to let the master process know that the worker is alive and has not hung.  We use a 
+    # heartbeat file discriptor which we periodically change ctimes on by changing its access mode.  This is
+    # modeled the technique used in the Unicorn web server.  Our difficult is that we must be prepaired for a 
+    # much less consistant load then a web server.  Within a single application there may be periods where jobs
+    # pile up and others where there is a compleatly empty queue for hours or days.  There is also the issue of 
+    # how long a job may take to run.  Jobs should generally be kept on the order of +timeout+ seconds.
+    # a Job that is likely to significantly exceed that will need to be broken up into smaller pieces.  This 
+    # function on the other hand deals with no jobs being present.  It must wake up the worker every timeout
+    # seconds inorder to exicute +heartbeat+ and keep it's self from being killed.
+    #
+    # The other consideration is a new job coming in while all workers are asleep.  When this happens, the
+    # Master process will write to the shared pipe and one of the workers will be awoken by the system.  To
+    # minimize the number of queue hits, it is necessary to try to remove a char representing a new job from
+    # the pipe every time one is present.  The +smoke_pipe+ method handles this by attempting to remove a 
+    # charactor from the pipe when it is called.
     def wait_for(delay)
+      return unless @continue
+      #delay ||= 356*24*60*60 #delay will be nil if there are no jobs.  Wait a really long time in that case.
       if delay <= 0 #more jobs are immidiatly availible
-        smoke_pipe(@stream)
+        smoke_pipe(@stream) 
         return
       end
       
       #need to wait for another job
       t = Time.now + delay
-      while Time.now < t
-        delay = [@timeout,Time.now - t].min
+      while Time.now < t && @continue
+        delay = [@timeout,t-Time.now].min
+        debug "No Jobs; #{name} sleeping for #{delay}:  [#{@timeout},#{t - Time.now}].min"
         wakeup,_1,_2 = select([@stream],nil,nil,delay)
         heartbeat
         if wakeup
@@ -306,14 +405,22 @@ module Updater
     # tries to pull a single charictor from the pipe (representing accepting one new job)
     # returns true if it succeeds, false otherwise
     def smoke_pipe(pipe)
-      pipe.first.read_nonblock(1) #each char in the string represents a new job 
+      debug { "#{name} smoking pipe (#{ts})" }
+      pipe.read_nonblock(1) #each char in the string represents a new job 
+      debug { "   done smoking (#{ts})" }
       true
     rescue Errno::EAGAIN, Errno::EINTR
       false
     end
     
     def heartbeat
+      return unless @continue
+      debug "Heartbeat for worker #{name}"
       @heartbeat.chmod(@m = 0 == @m ? 1 : 0)
+    end
+    
+    def ts
+      Time.now.strftime("%H:%M:%S")
     end
   end
   

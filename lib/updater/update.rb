@@ -131,7 +131,7 @@ module Updater
         hash[:finder] = finder || :get
         hash[:time] = time
         ret = create(hash.merge(options))
-        Process.kill('USR1',pid) if pid
+        Process.kill('USR2',pid) if pid
         ret
       rescue Errno::ESRCH
         @pid = nil
@@ -190,12 +190,18 @@ module Updater
       
       #A filter for all requests that are ready to run, that is they requested to be run before or at time.now
       def current
-        all(:time.lte=>time.now.to_i)
+        all(:time.lte=>time.now.to_i, :lock_name=>nil)
       end
       
       #A filter for all requests that are not yet ready to run, that is time is after time.now
       def delayed
         all(:time.gt=>time.now.to_i)
+      end
+      
+      #how many jobs will happen in the next n seconds
+      def future(n)
+        ct = time.now.to_i
+        all(:time.gt=>ct,:time.lt=>ct+n)
       end
       
       #Sets the process id of the worker process if known.  If this 
