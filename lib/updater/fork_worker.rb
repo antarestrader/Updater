@@ -53,8 +53,6 @@ module Updater
         @pipe = IO.pipe
         
         @signal_queue = []
-        
-        
       end
       
       def handle_signal_queue
@@ -117,10 +115,10 @@ module Updater
         rescue Errno::EINTR
           retry
         rescue Object => e
-          logger.error "Unhandled master loop exception #{e.inspect}."
+          logger.error "Unhandled master loop exception #{e.inspect}. (#{error_count})"
           logger.error e.backtrace.join("\n")
           error_count += 1
-          retry unless error_count > 10
+          sleep 10 and retry unless error_count > 10
           logger.fatal "10 consecutive errors! Abandoning Master process"
         end
         stop # gracefully shutdown all workers on our way out
@@ -183,8 +181,8 @@ module Updater
       # this method determins how many workers should exist based on the known future load
       # and sets @current_workers accordingly
       def antisipate_workload
-        load = Update.current.count
-        antisipated = Update.future(2*@timeout).count
+        load = Update.load
+        antisipated = Update.future(2*@timeout)
         if (load > @current_workers && 
             @current_workers < @max_workers && 
             (Time.now - (@downtime || 0)).to_i > 5 &&
@@ -280,6 +278,11 @@ module Updater
         end
       rescue Errno::ECHILD
       end
+      
+      #A convinient method for testing. It builds a dummy workier without forking or regertering it.
+      def build
+        new(@pipe,WorkerMonitor.new(-1,Updater::Util.tempio))
+      end
     
     end #class << self
 
@@ -321,16 +324,13 @@ module Updater
         begin
           delay = Update.work_off(self)
           heartbeat
-          puts Update.time.now
           wait_for(delay) if @continue
-        rescue DataObjects::ConnectionError
-          sleep 0.1
-          retry
         rescue Exception=> e
           say "Caught exception in Job Loop"
-          raise e
-          sleep 0.1
-          retry
+          say e.message
+          say "||=========\n|| Backtrace\n|| " + e.backtrace.join("\n|| ") + "\n||========="
+          Update.clear_locks(self)
+          exit; #die and be replaced by the master process
         end
       end
       Update.clear_locks(self)
@@ -383,7 +383,7 @@ module Updater
     # charactor from the pipe when it is called.
     def wait_for(delay)
       return unless @continue
-      #delay ||= 356*24*60*60 #delay will be nil if there are no jobs.  Wait a really long time in that case.
+      delay ||= 356*24*60*60 #delay will be nil if there are no jobs.  Wait a really long time in that case.
       if delay <= 0 #more jobs are immidiatly availible
         smoke_pipe(@stream) 
         return

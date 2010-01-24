@@ -2,80 +2,76 @@ module Updater
 
   #the basic class that drives updater
   class Update
-    # Contains the Error class after an error is caught in +run+. Not stored to the database.
+    # Contains the Error class after an error is caught in +run+. Not stored to the database
     attr_reader :error
     
-    include DataMapper::Resource
-    
-    property :id, Serial
-    property :target, Class
-    property :ident, Yaml
-    property :method, String
-    property :finder, String
-    property :args, Object, :lazy=>false
-    property :time, Integer
-    property :name, String
-    property :lock_name, String
-    
-    #will be called if an error occurs
-    belongs_to :failure, :model=>'Update', :child_key=>[:failure_id], :nullable=>true
-    
-    # Returns the Class or instance that will recieve the method call.  See +Updater.at+ for 
-    # information about how a target is derived.
-    def target
-      return @target if @ident.nil?
-      @target.send(@finder||:get, @ident)
-    end
-    
-    # Send the method with args to the target.
+    #Run the action on this traget compleating any chained actions
     def run(job=nil)
+      ret = true #put return in scope
       t = target #do not trap errors here
-      final_args = job ? sub_args(job,args.dup) : args
+      final_args = job ? sub_args(job,@orm.method_args) : @orm.method_args
       begin
-        t.send(@method.to_sym,*final_args)
+        t.send(@orm.method.to_sym,*final_args)
       rescue => e
         @error = e
-        failure.run(self) if failure
-        destroy unless nil == time
-        return false
+        Update.new(@orm.failure).run(self) if @orm.failure
+        ret = false
+      ensure
+        destroy unless nil == @orm.persistant
+        Update.new(@orm.ensure).run(self) if @orm.ensure
       end
-      destroy unless nil == time
-      true
+      Update.new(@orm.success).run(self) if @orm.success && ret
+      ret
     end
     
+    def method_missing(method, *args)
+      @orm.send(method,*args)
+    end
+    
+    def target
+      @orm.finder.nil? ? @orm.target : @orm.target.send(@orm.finder,@orm.finder_args)
+    end
+    
+    def initialize(orm_inst)
+      @orm = orm_inst
+    end
+    
+    def name=(n)
+      @orm.name=n
+    end
+    
+    def name
+      @orm.name
+    end
+    
+    #This is the appropriate valut ot use for a chanable field value
+    def id
+      @orm.id
+    end
+    
+  private
+      
     def sub_args(job,a)
-      a.map {|e| :__job__ == e ? job : e}
-    end
-    
-    #atempt to lock this record for the worker
-    def lock(worker)
-      return true if locked? && locked_by == worker.name
-      #all this to make sure the check and the lock are simultanious:
-      cnt = repository.update({properties[:lock_name]=>worker.name},self.class.all(:id=>self.id,:lock_name=>nil))
-      if 0 != cnt
-        @lock_name = worker.name
-        true
-      else
-        worker.say( "Worker #{worker.name} Failed to aquire lock on job #{id}" )
-        false
-      end
-    end
-    
-    def locked?
-      not @lock_name.nil?
-    end
-    
-    def locked_by
-      @lock_name
-    end
-    
-    #Like run but first aquires a lock for the worker.  Will return the result of run or nil
-    #if the record could not be locked
-    def run_with_lock(worker)
-      run if lock(worker)
-    end
+      a.map {|e| '__job__' == e.to_s ? job : e}
+    end 
     
     class << self
+      
+      #This attribute must be set to some ORM that will persist the data
+      attr_accessor :orm
+      
+      #Gets a single job form the queue, locks and runs it.  it returns the number of second
+      #Until the next job is scheduled, or 0 is there are more current jobs, or nil if there 
+      #are no jobs scheduled.
+      def work_off(worker)
+        inst = @orm.lock_next(worker)
+        new(inst).run if inst
+        @orm.queue_time
+      ensure
+        clear_locks(worker)
+      end
+      
+      def clear_locks(worker); @orm.clear_locks(worker); end
       
       # Request that the target be sent the method with args at the given time.
       #
@@ -114,8 +110,11 @@ module Updater
       # in conjunction with the +for+ method to manipulate requests effecting an object or class after
       # they are set.  See +for+ for examples
       #
-      # :failure <Updater> an other request to be run if this request raises an error.  Usually the 
-      # failure request will be created with the +chane+ method.
+      # :failure, :success,:ensure <Updater> an other request to be run when the request compleste.  Usually these
+      # valuses will be created with the +chaned+ method.
+      # 
+      # :persistance <true|false> if true the object will not be destroyed after the completion of its run.  By default
+      # this is false except when time is nil.
       #
       # == Examples
       #
@@ -123,22 +122,43 @@ module Updater
       #    
       #    f = Foo.create
       #    u = Updater.at(Chronic.parse('2 hours form now'),f,:bar,[]) # will run Foo.get(f.id).bar in 2 hours
-      def at(time,target,method,args=[],options={})
-        finder, finder_args = [:finder,:finder_args].map {|key| options.delete(key)}
-        hash = {:method=>method.to_s,:args=>args}
-        hash[:target] = target_for(target)
-        hash[:ident] = ident_for(target,finder,finder_args)
-        hash[:finder] = finder || :get
-        hash[:time] = time
-        ret = create(hash.merge(options))
-        Process.kill('USR2',pid) if pid
-        ret
-      rescue Errno::ESRCH
-        @pid = nil
-        puts "PID invalid"
-        #log this as well
+      def at(t,target,method = nil,args=[],options={})
+        hash = Hash.new
+        hash[:time] = t.to_i
+        
+
+        hash[:target],hash[:finder],hash[:finder_args] = target_for(target)
+        
+        hash[:finder] = options[:finder] || hash[:finder]
+        
+        hash[:finder] = options[:finder_args] || hash[:finder_args]
+        
+        hash[:method] = method || :process
+        
+        hash[:method_args] = args
+        
+        hash[:name] = options[:name]
+        
+        hash[:failure] = options[:failure]
+        
+        hash[:success] = options[:success]
+        
+        hash[:ensure] = options[:ensure]
+        
+        hash[:persistant] = options[:persistant] || t.nil? ? true : false
+        
+        schedule(hash)
       end
       
+      #Run this job in 'time' seconds from now 
+      def in(t,*args)
+        at(time.now+t,*args)
+      end
+      
+      #A more detailed breakdown of the schedule algorythm
+      def schedule(hash)
+        new(@orm.create(hash))
+      end
       # like +at+ but with time as time.now.  Generally this will be used to run a long running operation in
       # asyncronously in a differen process.  See +at+ for details
       def immidiate(*args)
@@ -166,16 +186,10 @@ module Updater
       #
       # <Array[Updater]> unless name is given then only a single [Updater] instance. 
       def for(target,name=nil)
-        ident = ident_for(target)
-        target = target_for(target)
-        if name
-          first(:target=>target,:ident=>ident,:name=>name)
-        else
-          all(:target=>target,:ident=>ident)
-        end
+        
       end
       
-      #The time class used by Updater.  See time= 
+            #The time class used by Updater.  See time= 
       def time
         @@time ||= Time
       end
@@ -188,20 +202,27 @@ module Updater
         @@time = klass
       end
       
-      #A filter for all requests that are ready to run, that is they requested to be run before or at time.now
+      # A filter for all requests that are ready to run, that is they requested to be run before or at time.now
+      # and ar not being processed by another worker
       def current
-        all(:time.lte=>time.now.to_i, :lock_name=>nil)
+        @orm.current
       end
       
-      #A filter for all requests that are not yet ready to run, that is time is after time.now
+      #The number of jobs currently backloged in the system
+      def load
+        @orm.current_load
+      end
+      
+      #A count of how many jobs are scheduled but not yet run
       def delayed
-        all(:time.gt=>time.now.to_i)
+        @orm.delayed
       end
       
-      #how many jobs will happen in the next n seconds
-      def future(n)
-        ct = time.now.to_i
-        all(:time.gt=>ct,:time.lt=>ct+n)
+      #How many jobs will happen at least 'start' seconds from now, but not more then finish seconds from now.
+      #If the second parameter is nil then it is the number of jobbs between now and the first parameter.
+      def future(start,finish = nil)
+        start, finish = [0, start] unless finish 
+        @orm.future(start,finish)
       end
       
       #Sets the process id of the worker process if known.  If this 
@@ -224,75 +245,20 @@ module Updater
         @pid
       end
       
-      ####################
-      # Worker Functions #
-      ####################
-      
-      #This returns a set of update requests.
-      #The first parameter is the maximum number to return (get a few other workers may be in compitition)
-      #The second optional parameter is a list of options to be past to DataMapper.
-      def worker_set(limit = 5, options={})
-        #TODO: add priority to this.
-        options = {:lock_name=>nil,:limit=>limit, :order=>[:time.asc]}.merge(options)
-        current.all(options)
-      end
-
-      #Gets a single job form the queue, locks and runs it.
-      def work_off(worker)
-        updates = worker_set
-        unless updates.empty?
-          #concept copied form delayed_job.  If there are a number of 
-          #different processes working on the queue, the niave approch
-          #would result in every instance trying to lock the same record.
-          #by shuffleing our results we greatly reduce the chances that
-          #multilpe workers try to lock the same process
-          updates = updates.to_a.sort_by{rand()}
-          updates.each do |u|
-            t = u.run_with_lock(worker)
-            break unless nil == t
-          end
-        end
-      rescue DataObjects::ConnectionError
-        sleep 0.1
-        retry
-      ensure
-        clear_locks(worker)
-        return queue_time
-      end
-      
-      def queue_time
-        nxt = self.first(:time.not=>nil,:lock_name=>nil, :order=>[:time.asc])
-        return nil unless nxt
-        return 0 if nxt.time <= time.now.to_i
-        return nxt.time - time.now.to_i
-      end
-      
-      def clear_locks(worker)
-        all(:lock_name=>worker.name).update(:lock_name=>nil)
-      end
-      
     private
       
-      # Computes the stored class an instance or class
+      # Given some instance return the information needed to recreate that target 
       def target_for(inst)
-        return inst if inst.kind_of? Class
-        inst.class
+        return [inst, nil, nil] if inst.kind_of? Class
+        [inst.class,@orm::FINDER,inst.send(orm::ID)]
       end
       
-      # Compute the agrument sent to the finder method
-      def ident_for(target,finder=nil,args=nil)
-        if !(target.kind_of?(Class)) || finder
-          args || target.id
-        end
-        #Otherwize the target is the class and ident should be nil
-      end
-    
     end
     
-    #:nodoc:
+        #:nodoc:
     def inspect
       "#<Updater id=#{id} target=#{target.inspect} time=#{time}>"
     end
-  end
+  end #class Update
   
-end
+end #Module Updater

@@ -4,3 +4,4 @@ pkg/*
 TODO
 *.db
 *.pid
+lib/updater/update_*.rb

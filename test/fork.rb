@@ -12,15 +12,16 @@ require "dm-core"
 
 require 'updater'
 require 'updater/fork_worker'
+require 'updater/orm/datamapper'
 
 require File.join(ROOT, 'target.rb')
-require File.join(ROOT, 'gt.rb')
+#require File.join(ROOT, 'gt.rb')
 
 DataMapper.setup(:default, :adapter=>'sqlite3', :database=>File.join(ROOT, 'simulated.db'))
 DataMapper.auto_migrate!
 include Updater
 
-
+Update.orm = Updater::ORM::DataMapper
 
 Update.immidiate(Target,:method1)
 Update.at(Time.now + 5, Target,:spawner)
@@ -41,4 +42,8 @@ ForkWorker.logger = logger
 
 File.open("fork.pid",'w') {|f| f.write(Process.pid) }
 
-ForkWorker.start(:foo, :timeout=>60, :workers=>10)
+if File.basename($0) == File.basename(__FILE__)
+  ForkWorker.start(:foo, :timeout=>60, :workers=>10)
+else
+  ForkWorker.initial_setup(:timeout=>60, :workers=>10)
+end

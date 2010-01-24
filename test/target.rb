@@ -19,9 +19,9 @@ class Target
     
     def spawner(cnt = 0, str="initial")
       puts "Spawner called at #{ts} (#{str} #{cnt})"
-      load = Update.current.count
+      load = Update.load
       sleep SIM_WORK[str] || 0.0 unless load > 100 #simulating work
-      puts " delay: #{Update.delayed.count} current: #{Update.current.count}"
+      puts " delay: #{Update.delayed} current: #{Update.load} antisipated: #{Update.future(60)}"
       if cnt <= 5
         add(7 +(rand 20),cnt+1,"Short") unless load > 20
         add(30+(rand 500),cnt+1,"Intermitent") # 30 + r500
@@ -32,7 +32,7 @@ class Target
     
     def add(time,cnt, string)
       errored = false
-      Update.at(Update.time.now + time, Target,:spawner,[cnt,string])
+      Update.in(time, Target,:spawner,[cnt,string])
     rescue DataObjects::ConnectionError
       raise if errored
       errored = true
