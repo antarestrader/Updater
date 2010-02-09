@@ -9,10 +9,14 @@ require "dm-core"
 require 'updater'
 require 'updater/thread_worker'
 require 'updater/fork_worker'
+require 'updater/orm/datamapper'
+
+Updater::Update.orm = Updater::ORM::DataMapper
 
 DataMapper.setup(:default, 'sqlite3::memory:')
 DataMapper.auto_migrate!
 
 require 'timecop'
 require 'chronic'
+
 

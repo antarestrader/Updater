@@ -9,6 +9,10 @@ class Target
       puts "Method 1 called. (#{@m1}) t=#{ts}"
     end
     
+    def reschedule(job,delay)
+      
+    end
+    
     SIM_WORK= {
       "initial" => 0.0,
       "Short" => 0.0,

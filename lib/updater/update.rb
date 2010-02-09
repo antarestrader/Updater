@@ -4,12 +4,13 @@ module Updater
   class Update
     # Contains the Error class after an error is caught in +run+. Not stored to the database
     attr_reader :error
+    attr_reader :orm
     
     #Run the action on this traget compleating any chained actions
-    def run(job=nil)
+    def run(job=nil,params=nil)
       ret = true #put return in scope
       t = target #do not trap errors here
-      final_args = job ? sub_args(job,@orm.method_args) : @orm.method_args
+      final_args = job || params ? sub_args(job,params,@orm.method_args) : @orm.method_args
       begin
         t.send(@orm.method.to_sym,*final_args)
       rescue => e
@@ -17,10 +18,10 @@ module Updater
         Update.new(@orm.failure).run(self) if @orm.failure
         ret = false
       ensure
-        destroy unless nil == @orm.persistant
+        Update.new(@orm.success).run(self) if @orm.success && ret
         Update.new(@orm.ensure).run(self) if @orm.ensure
+        @orm.destroy unless nil == @orm.persistant
       end
-      Update.new(@orm.success).run(self) if @orm.success && ret
       ret
     end
     
@@ -51,8 +52,17 @@ module Updater
     
   private
       
-    def sub_args(job,a)
-      a.map {|e| '__job__' == e.to_s ? job : e}
+    def sub_args(job,params,a)
+      a.map do |e| 
+        case e.to_s
+          when '__job_'
+            job
+          when '__params__'
+            params
+          else
+            e
+        end
+      end
     end 
     
     class << self
@@ -158,6 +168,14 @@ module Updater
       #A more detailed breakdown of the schedule algorythm
       def schedule(hash)
         new(@orm.create(hash))
+      end
+      
+      #create a new job having the same charistics as the old, except that 'hash' will override the original.
+      def reschedule(update, hash={})
+        new_job = update.orm.dup
+        new_job.update_attributes(hash)
+        new_job.save
+        new(new_job)
       end
       # like +at+ but with time as time.now.  Generally this will be used to run a long running operation in
       # asyncronously in a differen process.  See +at+ for details
