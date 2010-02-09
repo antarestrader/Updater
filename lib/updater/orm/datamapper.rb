@@ -95,6 +95,14 @@ module Updater
           all(:lock_name=>worker.name).update(:lock_name=>nil)
         end
         
+        def clear_all
+          all.destroy!
+        end
+        
+        def for(mytarget, myfinder, myfinder_args, myname)
+          #TODO
+        end
+        
       private
         #This returns a set of update requests.
         #The first parameter is the maximum number to return (get a few other workers may be in compitition)

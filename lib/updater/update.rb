@@ -134,17 +134,13 @@ module Updater
       #    u = Updater.at(Chronic.parse('2 hours form now'),f,:bar,[]) # will run Foo.get(f.id).bar in 2 hours
       def at(t,target,method = nil,args=[],options={})
         hash = Hash.new
-        hash[:time] = t.to_i
+        hash[:time] = t.to_i unless t.nil?
         
-
         hash[:target],hash[:finder],hash[:finder_args] = target_for(target)
-        
         hash[:finder] = options[:finder] || hash[:finder]
-        
-        hash[:finder] = options[:finder_args] || hash[:finder_args]
+        hash[:finder_args] = options[:finder_args] || hash[:finder_args]
         
         hash[:method] = method || :process
-        
         hash[:method_args] = args
         
         hash[:name] = options[:name]
@@ -204,7 +200,7 @@ module Updater
       #
       # <Array[Updater]> unless name is given then only a single [Updater] instance. 
       def for(target,name=nil)
-        
+        #TODO
       end
       
             #The time class used by Updater.  See time= 
@@ -241,6 +237,12 @@ module Updater
       def future(start,finish = nil)
         start, finish = [0, start] unless finish 
         @orm.future(start,finish)
+      end
+      
+      #Remove all scheduled jobs.  Mostly intended for testing, but may also be useful in cases of crashes
+      #or system corruption
+      def clear_all
+        @orm.clear_all
       end
       
       #Sets the process id of the worker process if known.  If this 
