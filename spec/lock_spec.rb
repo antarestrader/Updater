@@ -2,21 +2,10 @@ require File.join( File.dirname(__FILE__),  "spec_helper" )
 
 include Updater
 
+require  File.join( File.dirname(__FILE__),  "fooclass" )
+
 describe "Update Locking:" do
   
-  class Foo
-    include DataMapper::Resource
-    
-    property :id, Serial
-    property :name, String
-    
-    def bar(*args)
-      Foo.bar(:instance,*args)
-    end
-    
-  end
-  
-  Foo.auto_migrate!
   
   class Worker
     attr_accessor :pid
@@ -28,12 +17,14 @@ describe "Update Locking:" do
       @pid = Process.pid
     end
     
-    def say(_)
+    def say(text)
+      puts text
       nil
     end
   end    
   
   before :each do
+    Foo.all.destroy!
     @u = Update.immidiate(Foo,:bar,[])
     @w = Worker.new(:name=>"first", :quiet=>true)
   end
@@ -59,30 +50,7 @@ describe "Update Locking:" do
     @u.lock(@w).should be_true
     @u.lock(@w).should be_true
   end
-  
-  describe "#run_with_lock" do
-    
-    it "should run an unlocked record" do
-      u = Update.immidiate(Foo,:bar,[:arg1,:arg2])
-      Foo.should_receive(:bar).with(:arg1,:arg2)
-      u.run_with_lock(@w).should be_true
-    end
-    
-    it "should NOT run an already locked record" do
-      u = Update.immidiate(Foo,:bar,[:arg1,:arg2])
-      u.lock(Worker.new)
-      Foo.should_not_receive(:bar)
-      u.run_with_lock(@w).should be_nil
-    end
-    
-    it "should return false if the update ran but there was an error" do
-      u = Update.immidiate(Foo,:bar,[:arg1,:arg2])
-      Foo.should_receive(:bar).with(:arg1,:arg2).and_raise(RuntimeError)
-      u.run_with_lock(@w).should be_false
-    end
-    
-  end
-  
+   
   it "#clear_locks should clear all locks from a worker" do
     @v = Update.immidiate(Foo,:bar,[:arg1,:arg2])
     @u.lock(@w)

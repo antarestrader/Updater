@@ -11,7 +11,7 @@ describe "adding an immidiate update request" do
   it "with a class target" do
     u = Update.immidiate(Foo,:bar,[])
     u.target.should == Foo
-    Update.current.should include(u)
+    Update.current.get(u.id).should_not be_nil
     Update.delayed.should == 0
   end
   
@@ -19,16 +19,16 @@ describe "adding an immidiate update request" do
     f = Foo.create
     u = Update.immidiate(f,:bar,[])
     u.target.should == f
-    Update.current.should include(u)
-    Update.delayed.should_not include(u)
+    Update.current.get(u.id).should_not be_nil
+    Update.delayed.should == 0
   end
   
   it "with an custome finder" do
     f = Foo.create(:name=>'baz')
     u = Update.immidiate(Foo,:bar,[],:finder=>:first, :finder_args=>[{:name=>'baz'}])
     u.target.should == f
-    Update.current.should include(u)
-    Update.delayed.should_not include(u)
+    Update.current.get(u.id).should_not be_nil
+    Update.delayed.should == 0
   end
   
 end
@@ -46,7 +46,8 @@ describe "chained request" do
   end
   
   it "should be persistant" do
-    pending "TODO: write spec"
+    u = Update.chain(Foo,:bar,[:error])
+    u.orm.persistant.should be_true
   end
   
 end

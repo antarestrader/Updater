@@ -37,7 +37,7 @@ module Updater
           true
         else
           worker.say( "Worker #{worker.name} Failed to aquire lock on job #{id}" )
-          nil
+          false
         end
       end
       
