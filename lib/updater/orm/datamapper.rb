@@ -45,25 +45,33 @@ module Updater
         end
       end
       
-      def failure=(fail)
-        case fail.class
-          when self.class
-            chains.create(:target=>fail,:occasion=>'failure')
-          when Updater::Update
-            chains.create(:target=>fail.orm,:occasion=>'failure')
-          when Hash
-            fail.each do |target, params|
-              chains.create(:target=>target,:params=>params, :occasion=>'failure')
-            end
-          when Array
-            fail.each do |target|
-              chains.create(:target=>target,:occasion=>'failure')
-            end
+      #def failure
+      #def failure=
+      #def success
+      #def success=
+      #def ensure
+      #def ensure=
+      %w{failure success ensure}.each do |mode|
+        define_method "#{mode}=" do |chain|
+          case chain.class
+            when self.class
+              chains.create(:target=>chain,:occasion=>mode)
+            when Updater::Update
+              chains.create(:target=>chain.orm,:occasion=>mode)
+            when Hash
+              chain.each do |target, params|
+                chains.create(:target=>target,:params=>params, :occasion=>mode)
+              end
+            when Array
+              chain.each do |target|
+                chains.create(:target=>target,:occasion=>mode)
+              end
+          end
         end
-      end
 
-      def failure
-        chains.all(:occasion=>'failure')
+        define_method mode do
+          chains.all(:occasion=>mode)
+        end
       end
 
       #Useful, but not in API

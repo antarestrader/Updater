@@ -15,11 +15,11 @@ module Updater
         t.send(@orm.method.to_sym,*final_args)
       rescue => e
         @error = e
-        Update.new(@orm.failure).run(self) if @orm.failure
+        run_chain :failure
         ret = false
       ensure
-        Update.new(@orm.success).run(self) if @orm.success && ret
-        Update.new(@orm.ensure).run(self) if @orm.ensure
+        run_chain :success if ret
+        run_chain :ensure
         @orm.destroy! unless @orm.persistant
       end
       ret
@@ -78,6 +78,14 @@ module Updater
         end #begin
       end# map
     end #def
+    
+    def run_chain(name)
+      chains = @orm.send(name)
+      return unless chains
+      chains.each do |job|
+        Update.new(job.target).run(self,job.params)
+      end
+    end
     
     class << self
       
