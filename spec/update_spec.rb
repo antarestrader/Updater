@@ -5,7 +5,12 @@ include Updater
 describe Update do
   it "should have a version matching the VERSION file" do
     Updater::VERSION.should == File.read(File.join(ROOT,'VERSION')).strip
-  end  
+  end 
+  
+  it "shuold have its own inspect method" do
+    Update.new(Update.orm.new).inspect.should =~ /Updater::Update/
+  end
+
 end
 
 context "Gemspec: " do

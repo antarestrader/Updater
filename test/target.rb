@@ -9,6 +9,10 @@ class Target
       puts "Method 1 called. (#{@m1}) t=#{ts}"
     end
     
+    def chain(job,params)
+      puts "Job #{job.name || job.id} chained in."
+    end
+    
     def reschedule(job,delay)
       
     end

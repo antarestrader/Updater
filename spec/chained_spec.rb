@@ -4,7 +4,7 @@ include Updater
 
 require  File.join( File.dirname(__FILE__),  "fooclass" )
 
-describe "Adding Chained Methods:" do
+describe "Chained Methods:" do
   
   before :each do
     Update.clear_all
@@ -15,8 +15,51 @@ describe "Adding Chained Methods:" do
   [:failure, :success, :ensure].each do |mode|
     specify "adding '#{mode.to_s}' chain" do
       v = Update.immidiate(Foo,:method1,[],mode=>@u)
-      v.orm.send(mode).should_not be_nil
+      v.orm.send(mode).should_not be_empty
     end
   end
+  
+  specify "'failure' should run after an error" do
+    v = Update.immidiate(Foo,:method1,[],:failure=>@u)
+    Foo.should_receive(:method1).and_raise(RuntimeError)
+    Foo.should_receive(:chained).with(v,anything())
+    v.run
+  end
+  
+  specify "'failure' should NOT run if their is no error" do
+    v = Update.immidiate(Foo,:method1,[],:failure=>@u)
+    Foo.should_receive(:method1).and_return(:anything)
+    Foo.should_not_receive(:chained)
+    v.run
+  end
+  
+  specify "'success' should NOT run after an error" do
+    v = Update.immidiate(Foo,:method1,[],:success=>@u)
+    Foo.should_receive(:method1).and_raise(RuntimeError)
+    Foo.should_not_receive(:chained)
+    v.run
+  end
+  
+  specify "'success' should run if their is no error" do
+    v = Update.immidiate(Foo,:method1,[],:success=>@u)
+    Foo.should_receive(:method1).and_return(:anything)
+    Foo.should_receive(:chained).with(v,anything())
+    v.run
+  end
+  
+  specify "'ensure' should run after an error" do
+    v = Update.immidiate(Foo,:method1,[],:ensure=>@u)
+    Foo.should_receive(:method1).and_raise(RuntimeError)
+    Foo.should_receive(:chained).with(v,anything())
+    v.run
+  end
+  
+  specify "'ensure' should run if their is no error" do
+    v = Update.immidiate(Foo,:method1,[],:ensure=>@u)
+    Foo.should_receive(:method1).and_return(:anything)
+    Foo.should_receive(:chained).with(v,anything())
+    v.run
+  end
+  
   
 end

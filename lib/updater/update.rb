@@ -54,6 +54,10 @@ module Updater
       @orm.persistant
     end
     
+    def inspect
+      "#<Updater::Update target=#{target.inspect} time=#{orm.time}>"
+    end
+    
   private
       
     def sub_args(job,params,a)
@@ -301,11 +305,6 @@ module Updater
         [inst.class,@orm::FINDER,inst.send(orm::ID)]
       end
       
-    end
-    
-        #:nodoc:
-    def inspect
-      "#<Updater id=#{id} target=#{target.inspect} time=#{time}>"
     end
   end #class Update
   

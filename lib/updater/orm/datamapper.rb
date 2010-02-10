@@ -53,18 +53,18 @@ module Updater
       #def ensure=
       %w{failure success ensure}.each do |mode|
         define_method "#{mode}=" do |chain|
-          case chain.class
+          case chain
             when self.class
-              chains.create(:target=>chain,:occasion=>mode)
+              chains.new(:target=>chain,:occasion=>mode)
             when Updater::Update
-              chains.create(:target=>chain.orm,:occasion=>mode)
+              chains.new(:target=>chain.orm,:occasion=>mode)
             when Hash
               chain.each do |target, params|
-                chains.create(:target=>target,:params=>params, :occasion=>mode)
+                chains.new(:target=>target,:params=>params, :occasion=>mode)
               end
             when Array
               chain.each do |target|
-                chains.create(:target=>target,:occasion=>mode)
+                chains.new(:target=>target,:occasion=>mode)
               end
           end
         end
@@ -130,6 +130,7 @@ module Updater
         
         def clear_all
           all.destroy!
+          DMChained.all.destroy!
         end
         
         def for(mytarget, myfinder, myfinder_args, myname)

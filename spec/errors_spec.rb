@@ -22,7 +22,6 @@ describe "Job Error Handeling" do
   end
   
   it "should run the failure task" do
-    pending "Chained Method API"
     err = Update.chain(Foo,:bar,[:error])
     u = Update.immidiate(Foo,:bar,[:arg1,:arg2],:failure=>err)
     Foo.should_receive(:bar).with(:arg1,:arg2).and_raise(RuntimeError)
