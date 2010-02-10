@@ -10,6 +10,7 @@ describe "Chained Methods:" do
     Update.clear_all
     Foo.all.destroy!
     @u = Update.chain(Foo,:chained,[:__job__,:__params__])
+    @v = Update.chain(Foo,:chained2,[:__job__,:__params__])
   end
   
   [:failure, :success, :ensure].each do |mode|
@@ -61,5 +62,12 @@ describe "Chained Methods:" do
     v.run
   end
   
+  specify "params should be availible" do
+    v = Update.immidiate(Foo,:method1,[],:ensure=>{@u=>'hi', @v=>'bye'})
+    Foo.should_receive(:method1).and_return(:anything)
+    Foo.should_receive(:chained).with(anything(), 'hi')
+    Foo.should_receive(:chained2).with(anything(), 'bye')
+    v.run
+  end
   
 end

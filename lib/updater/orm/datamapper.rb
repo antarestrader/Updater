@@ -60,10 +60,12 @@ module Updater
               chains.new(:target=>chain.orm,:occasion=>mode)
             when Hash
               chain.each do |target, params|
+                target = target.orm if target.kind_of? Updater::Update
                 chains.new(:target=>target,:params=>params, :occasion=>mode)
               end
             when Array
               chain.each do |target|
+                target = target.orm if target.kind_of? Updater::Update
                 chains.new(:target=>target,:occasion=>mode)
               end
           end
