@@ -58,18 +58,26 @@ module Updater
       
     def sub_args(job,params,a)
       a.map do |e| 
-        case e.to_s
-          when '__job__'
-            job
-          when '__params__'
-            params
-          when '__self__'
-            self
-          else
-            e
-        end
-      end
-    end 
+        begin
+          case e.to_s
+            when '__job__'
+              job
+            when '__params__'
+              params
+            when '__self__'
+              self
+            else
+              e
+          end
+        # For the unfortunate case where e doesn't handle to_s nicely.
+        # On the other hand I dare someone to find something that can be marshaled,
+        # but doesn't do #to_s.
+        rescue NoMethodError=>err
+          raise err unless err.message =~ /\`to_s\'/
+          e
+        end #begin
+      end# map
+    end #def
     
     class << self
       
