@@ -38,7 +38,7 @@ describe "running an update" do
     u.should_not be_saved #NOTE: not a theological statment
   end
   
-  it "should not delete the record if it is a chain record" do
+  it "should NOT delete the record if it is a chain record" do
     u = Update.chain(Foo,:bar,[:arg1,:arg2])
     Foo.should_receive(:bar).with(:arg1,:arg2).and_raise(RuntimeError)
     u.run

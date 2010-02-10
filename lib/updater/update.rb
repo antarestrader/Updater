@@ -20,7 +20,7 @@ module Updater
       ensure
         Update.new(@orm.success).run(self) if @orm.success && ret
         Update.new(@orm.ensure).run(self) if @orm.ensure
-        @orm.destroy unless nil == @orm.persistant
+        @orm.destroy! unless @orm.persistant
       end
       ret
     end
@@ -48,6 +48,10 @@ module Updater
     #This is the appropriate valut ot use for a chanable field value
     def id
       @orm.id
+    end
+    
+    def persistant?
+      @orm.persistant
     end
     
   private
