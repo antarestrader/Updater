@@ -24,5 +24,4 @@ describe "Special Parameter Substitution" do
     Foo.should_receive(:chained).with(anything(),anything(),@u, 'job params')
     @u.run
   end
-  
 end

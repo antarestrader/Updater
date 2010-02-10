@@ -105,14 +105,21 @@ module Updater
       #
       # target  <Class | instance> .  If target is a class then 'method' will be sent to that class (unless the 
       # finder option is used.  Otherwise, the target will be assumed to be the result of 
-      # (target.class).get(target.id).  The finder method (:get by default) and the finder_args 
-      # (target.id by default) can be set in the options.  A DataMapper instance passed as the target
-      # will "just work."  Any object can be found in this mannor is known as a 'conforming instance'.
+      # (target.class).get(target.id).   (note: The ORM can/should override #get and #id with the proper
+      # methods for it's storage model.) The finder method (:get by default) and the finder_args 
+      # (target.id by default) can be set in the options.  A ORM (eg DataMapper) instance passed as the target
+      # will "just work."  Any object can be found in this mannor is known as a 'conforming instance'.  TODO:
+      # make ORM finder and id constants overridable for times when one ORM is used for Updater and another
+      # is used by the model classes.
       # 
       # method <Symbol>.  The method that will be sent to the calculated target.
       #
       # args <Array> a list of arguments to be sent to with the method call.  Note: 'args' must be seirialiable
-      # with Marshal.dump.  Defaults to []
+      # with Marshal.dump.  The special values '__job__', '__params__', and '__self__' are replaced they are found 
+      # in this list.  Defaults to [].  (note: the #to_s method will be called on all args before variable substitution
+      # any arg that responds with one of the special values will be replaced as noted above. E.g :__job__ .  If 
+      # something is silly enough to respond to to_s with a non-pure method you *will* have problems. 
+      # NoMethodError is caught and handled gracefully)
       #
       # options <Hash>  Addational options that will be used to configure the request.  see Options 
       # section below.
@@ -134,10 +141,11 @@ module Updater
       # in conjunction with the +for+ method to manipulate requests effecting an object or class after
       # they are set.  See +for+ for examples
       #
-      # :failure, :success,:ensure <Updater> an other request to be run when the request compleste.  Usually these
-      # valuses will be created with the +chaned+ method.
+      # :failure, :success,:ensure <Updater::Update instance> an other request to be run when the request compleste.  Usually these
+      # valuses will be created with the +chained+ method.  As an alternative a hash with keys of Updater::Update instances and
+      # values of Hash may be used.  The hash will be substituted for the '__param__' argument if/when the chained method is called.
       # 
-      # :persistance <true|false> if true the object will not be destroyed after the completion of its run.  By default
+      # :persistant <true|false> if true the object will not be destroyed after the completion of its run.  By default
       # this is false except when time is nil.
       #
       # == Examples
@@ -170,23 +178,25 @@ module Updater
         schedule(hash)
       end
       
-      #Run this job in 'time' seconds from now 
+      # Run this job in 'time' seconds from now.  See +at+ for details on expected args.
       def in(t,*args)
         at(time.now+t,*args)
       end
       
-      #A more detailed breakdown of the schedule algorythm
+      # Advanced: This method allows values to be passed directly to the ORM layer's create method.
+      # use +at+ and friends for everyday use cases.
       def schedule(hash)
         new(@orm.create(hash))
       end
-      
-      #create a new job having the same charistics as the old, except that 'hash' will override the original.
+
+      # Create a new job having the same charistics as the old, except that 'hash' will override the original.
       def reschedule(update, hash={})
         new_job = update.orm.dup
         new_job.update_attributes(hash)
         new_job.save
         new(new_job)
       end
+
       # like +at+ but with time as time.now.  Generally this will be used to run a long running operation in
       # asyncronously in a differen process.  See +at+ for details
       def immidiate(*args)
