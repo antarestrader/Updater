@@ -3,6 +3,12 @@ require "dm-types"
 
 module Updater
   module ORM
+    class DMChained
+      include ::DataMapper::Resource
+      storage_names[:default] = "update_chains"
+      property :id, Serial
+    end
+
     class DataMapper
       
       FINDER = :get
@@ -23,11 +29,9 @@ module Updater
       property :lock_name, String
       property :persistant, Boolean
       
-      belongs_to :failure, :model=>self.inspect, :child_key=>[:failure_id], :nullable=>true
-      belongs_to :success, :model=>self.inspect, :child_key=>[:success_id], :nullable=>true
-      belongs_to :ensure, :model=>self.inspect, :child_key=>[:ensure_id], :nullable=>true
+      has n, :chains, :model=>'Updater::ORM::DMChained', :child_key=>[:caller_id]
       
-      #atempt to lock this record for the worker
+      #attempt to lock this record for the worker
       def lock(worker)
         return true if locked? && locked_by == worker.name
         #all this to make sure the check and the lock are simultanious:
@@ -41,6 +45,27 @@ module Updater
         end
       end
       
+      def failure=(fail)
+        case fail.class
+          when self.class
+            chains.create(:target=>fail,:occasion=>'failure')
+          when Updater::Update
+            chains.create(:target=>fail.orm,:occasion=>'failure')
+          when Hash
+            fail.each do |target, params|
+              chains.create(:target=>target,:params=>params, :occasion=>'failure')
+            end
+          when Array
+            fail.each do |target|
+              chains.create(:target=>target,:occasion=>'failure')
+            end
+        end
+      end
+
+      def failure
+        chains.all(:occasion=>'failure')
+      end
+
       #Useful, but not in API
       def locked?
         not @lock_name.nil?
@@ -123,5 +148,14 @@ module Updater
         
       end
     end
-  end
-end
+    
+    class DMChained
+      belongs_to :caller, :model=>Updater::ORM::DataMapper, :child_key=>[:caller_id]
+      belongs_to :target, :model=>Updater::ORM::DataMapper, :child_key=>[:target_id]
+
+      property :params, Yaml, :nullable=>true
+      property :occasion, String,  :nullable=>false
+    end
+
+  end#ORM
+end#Updater

@@ -165,13 +165,9 @@ module Updater
         hash[:method] = method || :process
         hash[:method_args] = args
         
-        hash[:name] = options[:name]
-        
-        hash[:failure] = options[:failure]
-        
-        hash[:success] = options[:success]
-        
-        hash[:ensure] = options[:ensure]
+        [:name,:failure,:success,:ensure].each do |opt|
+          hash[opt] = options[opt] if options[opt]
+        end
         
         hash[:persistant] = options[:persistant] || t.nil? ? true : false
         
