@@ -10,7 +10,7 @@ module Updater
     def run(job=nil,params=nil)
       ret = true #put return in scope
       t = target #do not trap errors here
-      final_args = job || params ? sub_args(job,params,@orm.method_args) : @orm.method_args
+      final_args = sub_args(job,params,@orm.method_args)
       begin
         t.send(@orm.method.to_sym,*final_args)
       rescue => e
@@ -59,10 +59,12 @@ module Updater
     def sub_args(job,params,a)
       a.map do |e| 
         case e.to_s
-          when '__job_'
+          when '__job__'
             job
           when '__params__'
             params
+          when '__self__'
+            self
           else
             e
         end
