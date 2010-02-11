@@ -1,5 +1,5 @@
 require File.join( File.dirname(__FILE__),  "spec_helper" )
-
+require 'logger'
 include Updater
 
 def fake_process_status(estat=0)
@@ -9,6 +9,8 @@ end
 def fake_iostream
   stub("IOStream").as_null_object
 end
+
+ForkWorker.logger = Logger.new(nil)
 
 describe ForkWorker do
   
@@ -180,16 +182,18 @@ describe ForkWorker do
     end
     
     it "should increase max_workers on TTIN and decrease on TTOU" do
+      max = ForkWorker.instance_variable_get(:@max_workers)
       ForkWorker.queue_signal(:TTIN)
       ForkWorker.handle_signal_queue.should be_true
-      ForkWorker.instance_variable_get(:@max_workers).should == 2
+      ForkWorker.instance_variable_get(:@max_workers).should == max+1
       
       ForkWorker.queue_signal(:TTOU)
       ForkWorker.handle_signal_queue.should be_true
-      ForkWorker.instance_variable_get(:@max_workers).should == 1
+      ForkWorker.instance_variable_get(:@max_workers).should == max
     end
     
     it "should never allow max_workers to be less then 1" do
+      ForkWorker.instance_variable_set(:@max_workers,1)
       ForkWorker.queue_signal(:TTOU)
       ForkWorker.handle_signal_queue.should be_true
       ForkWorker.instance_variable_get(:@max_workers).should == 1
