@@ -10,6 +10,7 @@ describe "Fork Worker Instance" do
   end
   
   it "should have a heartbeat" do
+    @w.instance_variable_set(:@continue, true) #otherwise heartbeat is skipped 
     mode = @worker.heartbeat.stat.mode
     @w.heartbeat
     @worker.heartbeat.stat.mode.should_not == mode
@@ -23,12 +24,12 @@ describe "Fork Worker Instance" do
   
     it "should remove exactly 1 char from a pipe" do
       @pipe.last.write '..'
-      @w.smoke_pipe(@pipe).should be_true
+      @w.smoke_pipe(@pipe.first).should be_true
       @pipe.first.read_nonblock(2).should == '.'
     end
     
     it "should not raise errors or block on empty pipes" do
-      lambda { @w.smoke_pipe(@pipe) }.should_not raise_error
+      lambda { @w.smoke_pipe(@pipe.first) }.should_not raise_error
     end
     
   end

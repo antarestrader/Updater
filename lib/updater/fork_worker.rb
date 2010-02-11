@@ -310,8 +310,8 @@ module Updater
     
     #loop "forever" working off jobs from the queue
     def run
-      heartbeat
       @continue = true
+      heartbeat
       trap(:QUIT) do 
         say "#{name} caught QUIT signal.  Dieing gracefully"
         @continue = false 
