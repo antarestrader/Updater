@@ -70,4 +70,12 @@ describe "Chained Methods:" do
     v.run
   end
   
+  specify "add an Array" do
+    v = Update.immidiate(Foo,:method1,[],:ensure=>[@u,@v])
+    Foo.should_receive(:method1).and_return(:anything)
+    Foo.should_receive(:chained).with(anything(), anything())
+    Foo.should_receive(:chained2).with(anything(), anything())
+    v.run
+  end
+  
 end
