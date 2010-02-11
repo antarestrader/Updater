@@ -47,7 +47,7 @@ describe "chained request" do
   
   it "should be persistant" do
     u = Update.chain(Foo,:bar,[:error])
-    u.orm.persistant.should be_true
+    u.should be_persistant
   end
   
 end
