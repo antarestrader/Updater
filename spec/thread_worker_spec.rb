@@ -73,7 +73,7 @@ describe "working off jobs:" do
   describe "Update#work_off" do
     
     before :each do
-      Update.all.destroy!
+      Update.clear_all
     end 
   
     it "should run and immidiate job"do
