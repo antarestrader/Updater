@@ -20,7 +20,7 @@ module Updater
       ensure
         run_chain :success if ret
         run_chain :ensure
-        @orm.destroy! unless @orm.persistant
+        @orm.destroy unless @orm.persistant
       end
       ret
     end

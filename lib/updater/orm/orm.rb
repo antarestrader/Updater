@@ -13,6 +13,13 @@ module Updater
     # 12 fields below.  Most ORMs will add these when the fields are setup
     #
     # == Fields
+    # 
+    # These fields with thier getters and setters (except id which is read only) are expected
+    # to be implimented in every ORM implimention.  Other fields may be implimented as
+    # well, but clients SHOULD NOT depend on or manipulate them.  ORM will need to 
+    # impliment some persistant way to lock records, and should do so in such a way as the
+    # name of the worker can be tracked, and jobs cleared for that worker should it crach
+    # if the underlying datastore allows.
     #
     # id: a unique value asigned to each job. For purposes of the API it is a black box
     # which should be paseed to the ClassMethods#get method to retrieve the job.  If

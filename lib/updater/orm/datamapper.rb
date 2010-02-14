@@ -25,7 +25,7 @@ module Updater
       property :finder_args, Yaml
       property :method, String
       property :method_args, Object, :lazy=>false
-      property :name, String
+      property :name, String, :length=>255
       property :lock_name, String
       property :persistant, Boolean
       
@@ -68,6 +68,10 @@ module Updater
                 target = target.orm if target.kind_of? Updater::Update
                 chains.new(:target=>target,:occasion=>mode)
               end
+            when nil
+              chains=[]
+            else
+              raise ArgumentError
           end
         end
 
@@ -135,7 +139,7 @@ module Updater
           DMChained.all.destroy!
         end
         
-        def for(mytarget, myfinder, myfinder_args, myname)
+        def for(mytarget, myfinder, myfinder_args, myname=nil)
           #TODO
         end
         
@@ -164,7 +168,7 @@ module Updater
       belongs_to :caller, :model=>Updater::ORM::DataMapper, :child_key=>[:caller_id]
       belongs_to :target, :model=>Updater::ORM::DataMapper, :child_key=>[:target_id]
 
-      property :params, Yaml, :nullable=>true
+      property :params, Object, :nullable=>true
       property :occasion, String,  :nullable=>false
     end
 
