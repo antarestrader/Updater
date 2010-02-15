@@ -168,8 +168,8 @@ module Updater
       belongs_to :caller, :model=>Updater::ORM::DataMapper, :child_key=>[:caller_id]
       belongs_to :target, :model=>Updater::ORM::DataMapper, :child_key=>[:target_id]
 
-      property :params, Object, :nullable=>true
-      property :occasion, String,  :nullable=>false
+      property :params, Object, :required=>false
+      property :occasion, String,  :required=>true
     end
 
   end#ORM
