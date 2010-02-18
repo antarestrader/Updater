@@ -9,6 +9,10 @@
       Foo.bar(:instance,*args)
     end
     
+    def self.bar(*args) 
+      
+    end
+    
   end
 
 Foo.auto_migrate!

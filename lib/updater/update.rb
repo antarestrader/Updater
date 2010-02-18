@@ -1,4 +1,6 @@
 module Updater
+  class TargetMissingError < StandardError
+  end
 
   #the basic class that drives updater
   class Update
@@ -9,9 +11,9 @@ module Updater
     #Run the action on this traget compleating any chained actions
     def run(job=nil,params=nil)
       ret = true #put return in scope
-      t = target #do not trap errors here
-      final_args = sub_args(job,params,@orm.method_args)
       begin
+        t = target 
+        final_args = sub_args(job,params,@orm.method_args)
         t.send(@orm.method.to_sym,*final_args)
       rescue => e
         @error = e
@@ -30,7 +32,9 @@ module Updater
     end
     
     def target
-      @orm.finder.nil? ? @orm.target : @orm.target.send(@orm.finder,@orm.finder_args)
+      target = @orm.finder.nil? ? @orm.target : @orm.target.send(@orm.finder,@orm.finder_args)
+      raise TargetMissingError, "Class:'#{@orm.target}' Finder:'#{@orm.finder}', Args:'#{@orm.finder_args.inspect}'" unless target
+      target
     end
     
     def initialize(orm_inst)
@@ -195,6 +199,7 @@ module Updater
       # use +at+ and friends for everyday use cases.
       def schedule(hash)
         new(@orm.create(hash))
+        signal_worker
       end
 
       # Create a new job having the same charistics as the old, except that 'hash' will override the original.
@@ -290,7 +295,7 @@ module Updater
         Process::kill 0, @pid
         @pid
       rescue Errno::ESRCH, ArgumentError
-        raise ArgumentError "PID was invalid"
+        raise ArgumentError, "PID was invalid"
       end
       
       def pid
@@ -298,6 +303,11 @@ module Updater
       end
       
     private
+      def signal_worker
+        if @pid
+          Process::kill "USR2", @pid
+        end
+      end
       
       # Given some instance return the information needed to recreate that target 
       def target_for(inst)

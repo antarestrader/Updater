@@ -29,7 +29,8 @@ module Updater
           @logger = Logger.new(STDOUT)
           @logger.level = Logger::WARN
         end
-        logger.info "***Setting Up Master Process***"
+        logger.warn "***Setting Up Master Process***"
+        logger.warn "    Pid = #{Process.pid}"
         @max_workers = options[:workers] || 3
         logger.info "Max Workers set to #{@max_workers}"
         @timeout = options[:timeout] || 60
@@ -92,8 +93,6 @@ module Updater
       # * :sockets: 0 or more IO objects that should wake up master to alert it that new data is availible
       
       def start(stream,options = {})
-        logger.info "=== ForkWorker Start ==="
-        logger.info "    Pid = #{Process.pid}"
         initial_setup(options) #need this for logger
         logger.info "*** Starting Master Process***"
         @stream = stream
@@ -318,7 +317,8 @@ module Updater
         @pipe.last.write '.'
         trap(:QUIT,"IGNORE")
       end
-      trap(:TERM) { Update.clear_locks(self); exit }
+      trap(:TERM) { Update.clear_locks(self); Process.exit!(0) }
+      logger.info "#{name} is on-line"
       while @continue do
         heartbeat
         begin

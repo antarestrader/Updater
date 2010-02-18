@@ -9,7 +9,7 @@ GEM_VERSION = File.read(VERSION_FILE).strip
 AUTHOR = "John F. Miller"
 EMAIL = "emperor@antarestrader.com"
 HOMEPAGE = "http://blog.antarestrader.com"
-SUMMARY = "Plugin for the delayed calling of methods particularly DataMapper model instance and class methods."
+SUMMARY = "A Gem for queuing methods for later calling which is ORM Agnostic, and has advanced Error Handling"
 
 spec = Gem::Specification.new do |s|
   s.name = GEM_NAME
