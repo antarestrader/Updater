@@ -33,7 +33,7 @@ module Updater
     
     def target
       target = @orm.finder.nil? ? @orm.target : @orm.target.send(@orm.finder,@orm.finder_args)
-      raise TargetMissingError, "Class:'#{@orm.target}' Finder:'#{@orm.finder}', Args:'#{@orm.finder_args.inspect}'" unless target
+      raise TargetMissingError, "Target missing --Class:'#{@orm.target}' Finder:'#{@orm.finder}', Args:'#{@orm.finder_args.inspect}'" unless target
       target
     end
     
@@ -60,6 +60,8 @@ module Updater
     
     def inspect
       "#<Updater::Update target=#{target.inspect} time=#{orm.time}>"
+    rescue TargetMissingError
+      "#<Updater::Update target=<missing> time=#{orm.time}>"
     end
     
   private
@@ -198,8 +200,9 @@ module Updater
       # Advanced: This method allows values to be passed directly to the ORM layer's create method.
       # use +at+ and friends for everyday use cases.
       def schedule(hash)
-        new(@orm.create(hash))
+        r = new(@orm.create(hash))
         signal_worker
+        r
       end
 
       # Create a new job having the same charistics as the old, except that 'hash' will override the original.
@@ -304,7 +307,9 @@ module Updater
       
     private
       def signal_worker
-        if @pid
+        if @socket
+          @socket.write '.'
+        elsif @pid
           Process::kill "USR2", @pid
         end
       end
