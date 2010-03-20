@@ -102,6 +102,10 @@ module Updater
       #This attribute must be set to some ORM that will persist the data
       attr_accessor :orm
       
+      # This is an open IO socket that will be writen to when a job is scheduled. If it is unset
+      # then @pid is signaled instead.
+      attr_accessor :socket
+      
       #Gets a single job form the queue, locks and runs it.  it returns the number of second
       #Until the next job is scheduled, or 0 is there are more current jobs, or nil if there 
       #are no jobs scheduled.
@@ -289,6 +293,8 @@ module Updater
       #is set then an attempt will be made to signal the worker any
       #time a new update is made.
       #
+      #The PID will not be signaled if @socket is availible, but should be set as a back-up
+      #
       #If pid is not set, or is set to nil then the scheduleing program 
       #is responcible for waking-up a potentially sleeping worker process
       #in another way.
@@ -298,6 +304,7 @@ module Updater
         Process::kill 0, @pid
         @pid
       rescue Errno::ESRCH, ArgumentError
+        @pid = nil
         raise ArgumentError, "PID was invalid"
       end
       

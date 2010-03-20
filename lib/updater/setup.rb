@@ -50,20 +50,42 @@ module Updater
       Process.kill("TERM",File.read(@options[:pid_file]).to_i)
     end
     
-    def client
-      
+    # The client is responcible for loading classes and making connections.  We will simply setup the Updater spesifics
+    def client_setup
+      if @options[:socket]
+        Updater::Update.socket = UNIXSocket.new(@options[:socket])
+      elsif @options[:udp]
+        socket = UNIXSocket.new()
+        socket.connect(@options[:host],@options[:udp])
+        Updater::Update.socket = socket
+      elsif @options[:tcp]
+        Updater::Update.socket = TCPSocket.new(@options[:host],@options[:tcp])
+      elsif @options[:remote]
+        raise NotImplimentedError #For future Authenticated Http Rest Server
     end
     
     private
     
     def _start
       #set ORM
-      require 'updater/orm/datamapper'
-      Updater::Update.orm = ORM::DataMapper
-      
+      orm = @option[:orm] || "datamapper"
+      case orm.downcase
+        when "datamapper"
+          require 'updater/orm/datamapper'
+          Updater::Update.orm = ORM::DataMapper
+        when "mongodb"
+          require 'updater/orm/mongodb'
+          Updater::Update.orm = ORM::MongoDB
+        when "activerecord"
+          require 'updater/orm/activerecord'
+          Updater::Update.orm = ORM::ActiveRecord
+        else
+          require "update/orm/#{orm}"
+          Updater::Update.orm = Object.const_get("ORM").const_get(orm.capitalize)
+      end
       #init DataStore
-      DataMapper.logger = @logger
-      DataMapper.setup(:default, :adapter=>'sqlite3', :database=>'./simulated.db')
+      default_options = {:adapter=>'sqlite3', :database=>'./default.db'}
+      Updater.orm.setup((@options[:database] || @options[:orm_setup] || default_options).merge(:logger=>@logger))
       
       #load Models
       

@@ -140,13 +140,23 @@ module Updater
       def master_sleep
         begin
           timeout = calc_timeout
-          logger.debug { "Sleeping for #{timeout}" } #TODO return to debug 
+          logger.debug { "Sleeping for #{timeout}" }
           ready, _1, _2 = IO.select(@wakeup_set, nil, nil, timeout)
-          return unless ready && ready.first #just wakeup and run maintance
-          @signal_queue << :DATA unless ready.first == @self_pipe.first #somebody wants our attention
+          return unless ready && ready.first #timeout hit,  just wakeup and run maintance
+          add_connection(ready.first) and return if ready.first.respond_to?(:accept) #open a new incomming connection 
+          @signal_queue << :DATA unless ready.first == @self_pipe.first
           loop {ready.first.read_nonblock(16 * 1024)}
+        rescue EOFError #somebody closed thier connection
+          logger.debug "closed socket connection"
+          @wakeup_set.delete ready.first
+          ready.first.close
         rescue Errno::EAGAIN, Errno::EINTR
         end
+      end
+      
+      def add_connection(server)
+        @wakeup_set << server.accept_nonblock
+      rescue Errno::EAGAIN, Errno::EINTR
       end
       
       def calc_timeout

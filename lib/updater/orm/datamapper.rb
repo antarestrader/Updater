@@ -153,6 +153,11 @@ module Updater
           current.all(options)
         end
         
+        def setup(options)
+          ::DataMapper.logger = options.delete(:logger)
+          ::Datamapper.setup(:default,options)
+        end
+        
         def lock
           
         end

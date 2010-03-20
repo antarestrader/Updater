@@ -217,6 +217,14 @@ module Updater
         NotImplementedError
       end
       
+      # This method is the generic way to setup the datastore.  Options is a hash one of whose fields
+      # will be :logger, the logger instance to pass on to the ORM.  The rest of the options are ORM 
+      # spesific.  The function should prepair a connection to the datastore using the given options.
+      # If the connection cannot be prepaired then an appropriate error should be raised.
+      def setup(options)
+        NotImplementedError 
+      end
+      
       # Optional, but strongly recomended.
       #
       # For any datastore that permits, return and Array of all delayed, chained, and current but not locked jobs that reference 
