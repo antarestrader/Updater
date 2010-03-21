@@ -17,11 +17,12 @@ require 'updater/orm/datamapper'
 require File.join(ROOT, 'target.rb')
 #require File.join(ROOT, 'gt.rb')
 
-DataMapper.setup(:default, :adapter=>'sqlite3', :database=>File.join(ROOT, 'simulated.db'))
+DataMapper.setup(:default, :adapter=>'mysql', :database=>'simulate', :user=>'test', :password=>nil, :host=>'localhost')
 DataMapper.auto_migrate!
 include Updater
 
 Update.orm = Updater::ORM::DataMapper
+
 
 Update.immidiate(Target,:method1)
 Update.at(Time.now + 5, Target,:spawner)

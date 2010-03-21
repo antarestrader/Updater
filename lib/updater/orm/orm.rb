@@ -225,6 +225,14 @@ module Updater
         NotImplementedError 
       end
       
+      # This method is called by the child before a fork call.  It allows the ORM to clean up any connections
+      # Made by the parent and establish new connections if necessary.
+      def before_fork
+        
+      end
+      
+      def after_fork
+      
       # Optional, but strongly recomended.
       #
       # For any datastore that permits, return and Array of all delayed, chained, and current but not locked jobs that reference 

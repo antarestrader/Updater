@@ -22,7 +22,12 @@ module Updater
       ensure
         run_chain :success if ret
         run_chain :ensure
-        @orm.destroy unless @orm.persistant
+        begin
+          @orm.destroy unless @orm.persistant
+        rescue DataObjects::ConnectionError
+          sleep 0.1
+          retry
+        end
       end
       ret
     end
@@ -95,6 +100,9 @@ module Updater
       chains.each do |job|
         Update.new(job.target).run(self,job.params)
       end
+    rescue NameError
+      puts @orm.inspect
+      raise
     end
     
     class << self
@@ -207,6 +215,9 @@ module Updater
         r = new(@orm.create(hash))
         signal_worker
         r
+      rescue NoMethodError
+        raise ArgumentError, "ORM not initialized!" if @orm.nil?
+        raise
       end
 
       # Create a new job having the same charistics as the old, except that 'hash' will override the original.

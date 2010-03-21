@@ -35,7 +35,7 @@ module Updater
         logger.info "Max Workers set to #{@max_workers}"
         @timeout = options[:timeout] || 60
         logger.info "Timeout set to #{@timeout} sec."
-        @current_workers = 1
+        @current_workers = 1 #we will actually add this worker the first time through the master loop
         @workers = {} #key is pid value is worker class
         @uptime = Time.now
         @downtime = Time.now
@@ -127,7 +127,7 @@ module Updater
       def stop(graceful = true)
         trap(:USR2,"IGNORE")
         [:INT,:TERM].each {|signal| trap(signal,"DEFAULT") }
-        puts "Quitting. I need 30 seconds to stop my workers..."
+        puts "Quitting. I need 30 seconds to stop my workers..." unless @workers.empty?
         limit = Time.now + 30
         signal_each_worker(graceful ? :QUIT : :TERM)
         until @workers.empty? || Time.now > limit
@@ -147,7 +147,7 @@ module Updater
           @signal_queue << :DATA unless ready.first == @self_pipe.first
           loop {ready.first.read_nonblock(16 * 1024)}
         rescue EOFError #somebody closed thier connection
-          logger.debug "closed socket connection"
+          logger.info "closed socket connection"
           @wakeup_set.delete ready.first
           ready.first.close
         rescue Errno::EAGAIN, Errno::EINTR
@@ -155,6 +155,7 @@ module Updater
       end
       
       def add_connection(server)
+        logger.info "opened socket connection"
         @wakeup_set << server.accept_nonblock
       rescue Errno::EAGAIN, Errno::EINTR
       end
@@ -229,6 +230,7 @@ module Updater
       
       def add_worker(worker_number)
         worker = WorkerMonitor.new(worker_number,Updater::Util.tempio)
+        Update.orm.before_fork
         pid = Process.fork do
           fork_cleanup
           self.new(@pipe,worker).run
@@ -337,8 +339,8 @@ module Updater
           wait_for(delay) if @continue
         rescue Exception=> e
           say "Caught exception in Job Loop"
-          say e.message
-          say "||=========\n|| Backtrace\n|| " + e.backtrace.join("\n|| ") + "\n||========="
+          say e.inspect
+          say "\n||=========\n|| Backtrace\n|| " + e.backtrace.join("\n|| ") + "\n||========="
           Update.clear_locks(self)
           exit; #die and be replaced by the master process
         end

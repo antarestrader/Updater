@@ -62,6 +62,12 @@ module Updater
         Updater::Update.socket = TCPSocket.new(@options[:host],@options[:tcp])
       elsif @options[:remote]
         raise NotImplimentedError #For future Authenticated Http Rest Server
+      end
+      
+      #set PID
+      if File.exists? @options[:pid_file]
+        Updater::Update.pid = File.read(@options[:pid_file]).strip
+      end
     end
     
     private
@@ -118,9 +124,13 @@ module Updater
       
       #Log PID
       File.open(@options[:pid_file],'w') { |f| f.write(Process.pid.to_s)}
+      
+      cliennt 
+      
       #start Worker
-      require 'updater/fork_worker'
-      worker_class = ForkWorker
+      worker = @option[:worker] || 'fork'  #todo make this line windows safe
+      require "updater/#{worker}_worker"
+      worker_class = Object.const_get("#{worker.capitalize}Worker")
       worker_class.logger = @logger
       worker_class.start(@options)
     end

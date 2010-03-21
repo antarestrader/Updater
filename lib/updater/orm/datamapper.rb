@@ -143,6 +143,21 @@ module Updater
           #TODO
         end
         
+        def setup(options)
+          ::DataMapper.logger = options.delete(:logger)
+          ::Datamapper.setup(:default,options)
+        end
+        
+        # For pooled connections it is necessary to empty the pool of the parents connections so that they
+        # do not comtiminate the child pool. Note that while Datamapper is thread safe, it is not safe accross a process fork.
+        def before_fork
+          DataObjects::Pooling.pools.each {|p| p.dispose}
+        end
+        
+        def after_fork
+          
+        end
+        
       private
         #This returns a set of update requests.
         #The first parameter is the maximum number to return (get a few other workers may be in compitition)
@@ -152,12 +167,7 @@ module Updater
           options = {:lock_name=>nil,:limit=>limit, :order=>[:time.asc]}.merge(options)
           current.all(options)
         end
-        
-        def setup(options)
-          ::DataMapper.logger = options.delete(:logger)
-          ::Datamapper.setup(:default,options)
-        end
-        
+
         def lock
           
         end
