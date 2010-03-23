@@ -110,6 +110,12 @@ module Updater
       #This attribute must be set to some ORM that will persist the data
       attr_accessor :orm
       
+      #remove once Bug is discovered
+      def orm=(input)
+        raise ArgumentError, "Must set ORM to and appropriate class" unless input.kind_of? Class
+        @orm = input
+      end
+      
       # This is an open IO socket that will be writen to when a job is scheduled. If it is unset
       # then @pid is signaled instead.
       attr_accessor :socket

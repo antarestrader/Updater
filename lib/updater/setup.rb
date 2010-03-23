@@ -29,11 +29,13 @@ module Updater
     
     ROOT = File.dirname(self.config_file)
     
-    def initialize(file_or_hash)
+    #extended used for clients who wnat to override parameters
+    def initialize(file_or_hash, extended = {})
       @options = file_or_hash.kind_of?(Hash) ? file_or_hash : load_file(file_or_hash)
+      @options.merge(extended)
       @options[:pid_file] ||= File.join(ROOT,'updater.pid')
       @options[:host] ||= "localhost"
-      @logger = Logger.new(@options[:log_file] || STDOUT)
+      @logger = @options[:logger] || Logger.new(@options[:log_file] || STDOUT)
       level = Logger::SEV_LABEL.index(@options[:log_level].upcase) if @options[:log_level]
       @logger.level = level || Logger::WARN 
     end
