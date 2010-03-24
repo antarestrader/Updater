@@ -19,13 +19,13 @@ module Updater
       storage_names[:default] = "updates"
     
       property :id, Serial
-      property :time, Integer
-      property :target, Class
-      property :finder, String
-      property :finder_args, Yaml
+      property :time, Integer, :index=>true
+      property :target, Class, :index=>:for_target
+      property :finder, String, :index=>:for_target
+      property :finder_args, Yaml, :index=>:for_target
       property :method, String
       property :method_args, Object, :lazy=>false
-      property :name, String, :length=>255
+      property :name, String, :length=>255, :index=>true
       property :lock_name, String
       property :persistant, Boolean
       
@@ -140,7 +140,13 @@ module Updater
         end
         
         def for(mytarget, myfinder, myfinder_args, myname=nil)
-          search = all(:target=>mytarget,:finder=>myfinder,:finder_args=>myfinder_args, :name=>myname)
+          search = all(
+              :target=>mytarget,
+              :finder=>myfinder,
+              :finder_args=>myfinder_args, 
+              :lock_name=>nil
+            )
+          myname ? search.all(:name=>myname ) : search
         end
         
         def setup(options)

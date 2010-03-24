@@ -8,6 +8,7 @@ describe "named request" do
   
   before(:each) do
     Foo.all.destroy!
+    Update.clear_all
   end
   
   it "should be found by name when target is an instance" do
@@ -27,6 +28,29 @@ describe "named request" do
     u1 = Update.immidiate(Foo,:bar,[:arg1,:arg2], :name=>'First')
     u2 = Update.immidiate(Foo,:bar,[:arg3,:arg4])
     Update.for(Foo).should include(u1,u2)
+  end
+  
+  #locked updates are already running and can therefore not be modified
+  it "should not include locked updates" do
+    u = Update.immidiate(Foo,:bar,[:named],:name=>'Now')
+    u.orm.lock(Struct.new(:name).new('test_worker'))
+    u.orm.should be_locked
+    Update.for(Foo).should_not include(u)
+    Update.for(Foo).should be_empty
+  end
+  
+  it "should not return rusults with the wrong name" do
+    u = Update.immidiate(Foo,:bar,[:named],:name=>'Now')
+    u.name.should ==("Now")
+    Update.for(Foo, "Then").should be_nil
+  end
+  
+  it "should not return results for the wring target" do
+    f = Foo.create(:name=>'Honey')
+    g = Foo.create(:name=>'Sweetie Pie')
+    u = Update.immidiate(f,:bar,[:named],:name=>'Now')
+    Update.for(f).should include(u)
+    Update.for(g).should be_empty
   end
   
 end
