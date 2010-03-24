@@ -403,8 +403,8 @@ module Updater
       #need to wait for another job
       t = Time.now + delay
       while Time.now < t && @continue
-        delay = [@timeout,t-Time.now].min
-        debug "No Jobs; #{name} sleeping for #{delay}:  [#{@timeout},#{t - Time.now}].min"
+        delay = [@timeout/2,t-Time.now].min
+        debug "No Jobs; #{name} sleeping for #{delay}:  [#{@timeout/2},#{t - Time.now}].min"
         wakeup,_1,_2 = select([@stream],nil,nil,delay)
         heartbeat
         if wakeup
