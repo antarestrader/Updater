@@ -54,9 +54,13 @@ module Updater
       @orm.name
     end
     
-    #This is the appropriate valut ot use for a chanable field value
+    #This is the appropriate value to use for a chanable field value
     def id
       @orm.id
+    end
+    
+    def ==(other)
+      id = other.id
     end
     
     def persistant?
@@ -261,7 +265,9 @@ module Updater
       #
       # <Array[Updater]> unless name is given then only a single [Updater] instance. 
       def for(target,name=nil)
-        #TODO
+        target,finder,args = target_for(target)
+        ret = @orm.for(target,finder,args,name).map {|i| new(i)}
+        name ? ret.first : ret
       end
       
             #The time class used by Updater.  See time= 

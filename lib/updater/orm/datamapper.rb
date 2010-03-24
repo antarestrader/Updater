@@ -140,7 +140,7 @@ module Updater
         end
         
         def for(mytarget, myfinder, myfinder_args, myname=nil)
-          #TODO
+          search = all(:target=>mytarget,:finder=>myfinder,:finder_args=>myfinder_args, :name=>myname)
         end
         
         def setup(options)
@@ -151,7 +151,7 @@ module Updater
         # For pooled connections it is necessary to empty the pool of the parents connections so that they
         # do not comtiminate the child pool. Note that while Datamapper is thread safe, it is not safe accross a process fork.
         def before_fork
-          DataObjects::Pooling.pools.each {|p| p.dispose}
+          DataObjects::Pooling.pools.each {|p| p.dispose} if defined? DataObjects::Polling
         end
         
         def after_fork

@@ -14,23 +14,19 @@ describe "named request" do
     f = Foo.create(:name=>'Honey')
     u = Update.immidiate(f,:bar,[:named],:name=>'Now')
     u.name.should ==("Now")
-    pending "'for' not implemented"
     Update.for(f, "Now").should ==(u)
   end
   
   it "should be found by name when target is a class" do
     u = Update.immidiate(Foo,:bar,[:named],:name=>'Now')
     u.name.should ==("Now")
-    pending "'for' not implemented"
     Update.for(Foo, "Now").should ==(u)
   end
   
   it "should return all updates for a given target" do
-    u1 = Update.immidiate(Foo,:bar,[:arg1,:arg2])
+    u1 = Update.immidiate(Foo,:bar,[:arg1,:arg2], :name=>'First')
     u2 = Update.immidiate(Foo,:bar,[:arg3,:arg4])
-    pending "'for' not implemented"
     Update.for(Foo).should include(u1,u2)
   end
-
   
 end
