@@ -140,6 +140,8 @@ module Updater
       worker_class.logger = @logger
       @logger.info "Using #{worker_class.to_s} to run jobs:"
       worker_class.start(@options)
+      File.unlink(@options[:pid_file])
+      File.unlink @options[:socket] if @options[:socket] && File.exists?(@options[:socket])
     end
     
     def load_file(file)
