@@ -1,0 +1,3 @@
+$LOAD_PATH << '/home/jfmiller28/dev/updater/lib/'
+
+require 'updater/tasks'

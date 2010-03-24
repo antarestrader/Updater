@@ -27,7 +27,7 @@ module Updater
       end
     end
     
-    ROOT = File.dirname(self.config_file)
+    ROOT = File.dirname(self.config_file || Dir.pwd)
     
     #extended used for clients who wnat to override parameters
     def initialize(file_or_hash, extended = {})
@@ -41,11 +41,11 @@ module Updater
     end
     
     def start
-      @logger.warn "Starting Loop"
       pid = Process.fork do
         _start
       end
-      @logger.warn "Rake Successfully started Master Loop at pid #{pid}"
+      @logger.warn "Successfully started Master Loop at pid #{pid}"
+      puts "Job Queue Processor Started at PID: #{pid}"
     end
     
     def stop
@@ -76,7 +76,7 @@ module Updater
     
     def _start
       #set ORM
-      orm = @option[:orm] || "datamapper"
+      orm = @options[:orm] || "datamapper"
       case orm.downcase
         when "datamapper"
           require 'updater/orm/datamapper'
@@ -93,8 +93,8 @@ module Updater
       end
       #init DataStore
       default_options = {:adapter=>'sqlite3', :database=>'./default.db'}
-      Updater.orm.setup((@options[:database] || @options[:orm_setup] || default_options).merge(:logger=>@logger))
-      
+      Updater::Update.orm.setup((@options[:database] || @options[:orm_setup] || default_options).merge(:logger=>@logger))
+      @logger.info "Data store '#{orm}' successfully loaded"
       #load Models
       
       models = @options[:models] || Dir.glob('./app/models/**/*.rb')
@@ -103,11 +103,13 @@ module Updater
       end
       
       #establish Connections
+      @options[:host] ||= 'localhost'
       #Unix Socket -- name at @options[:socket]
       if @options[:socket]
         File.unlink @options[:socket] if File.exists? @options[:socket]
         @options[:sockets] ||= []
         @options[:sockets] << UNIXServer.new(@options[:socket])
+        @logger.info "Now listening on UNIX Socket: #{@options[:socket]}"
       end
       
       #UDP potentially unsafe user monitor server for Authenticated Connections (TODO)
@@ -116,24 +118,27 @@ module Updater
         udp = UDPSocket.new
         udp.bind(@options[:host],@options[:udp])
         @options[:sockets] << udp
+        @logger.info "Now listening for UDP: #{@options[:host]}:#{@options[:udp]}"
       end
       
       #TCP Unsafe user monitor server for Authenticated Connections (TODO)
       if @options[:tcp]
         @options[:sockets] ||= []
         @options[:sockets] << TCPServer.new(@options[:host],@options[:tcp])
+        @logger.info "Now listening for TCP: #{@options[:host]}:#{@options[:tcp]}"
       end
       
       #Log PID
       File.open(@options[:pid_file],'w') { |f| f.write(Process.pid.to_s)}
       
-      cliennt 
+      client_setup
       
       #start Worker
-      worker = @option[:worker] || 'fork'  #todo make this line windows safe
+      worker = @options[:worker] || 'fork'  #todo make this line windows safe
       require "updater/#{worker}_worker"
-      worker_class = Object.const_get("#{worker.capitalize}Worker")
+      worker_class = Updater.const_get("#{worker.capitalize}Worker")
       worker_class.logger = @logger
+      @logger.info "Using #{worker_class.to_s} to run jobs:"
       worker_class.start(@options)
     end
     
@@ -141,7 +146,9 @@ module Updater
       return {} if file.nil?
       file = File.open(file) if file.kind_of?(String)
       @config_file = File.expand_path(file.path)
-      YAML.load(ERB.new(File.read(file)).result(binding)) || {}
+      YAML.load(ERB.new(file.read).result(binding)) || {}
+    ensure
+      file.close
     end
   end
 end

@@ -44,7 +44,7 @@ ForkWorker.logger = logger
 File.open("fork.pid",'w') {|f| f.write(Process.pid) }
 
 if File.basename($0) == File.basename(__FILE__)
-  ForkWorker.start(:foo, :timeout=>60, :workers=>10)
+  ForkWorker.start(:timeout=>60, :workers=>10)
 else
   ForkWorker.initial_setup(:timeout=>60, :workers=>10)
 end

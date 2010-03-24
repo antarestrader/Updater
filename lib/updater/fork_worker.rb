@@ -92,10 +92,9 @@ module Updater
       # * :timeout : how long can a worker be inactive before being killed
       # * :sockets: 0 or more IO objects that should wake up master to alert it that new data is availible
       
-      def start(stream,options = {})
+      def start(options = {})
         initial_setup(options) #need this for logger
         logger.info "*** Starting Master Process***"
-        @stream = stream
         logger.info "* Adding the first round of workers *"
         maintain_worker_count
         QUEUE_SIGS.each { |sig| trap_deferred(sig) }
@@ -121,7 +120,7 @@ module Updater
           logger.fatal "10 consecutive errors! Abandoning Master process"
         end
         stop # gracefully shutdown all workers on our way out
-        logger.info "master process Exiting"
+        logger.warn "-=-=-=- master process Exiting -=-=-=-\n\n"
       end
       
       def stop(graceful = true)
@@ -155,8 +154,8 @@ module Updater
       end
       
       def add_connection(server)
-        logger.info "opened socket connection"
         @wakeup_set << server.accept_nonblock
+        logger.info "opened socket connection: [#{@wakeup_set.last.addr.join(', ')}]"
       rescue Errno::EAGAIN, Errno::EINTR
       end
       

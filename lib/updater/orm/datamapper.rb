@@ -151,7 +151,7 @@ module Updater
         
         def setup(options)
           ::DataMapper.logger = options.delete(:logger)
-          ::Datamapper.setup(:default,options)
+          ::DataMapper.setup(:default,options)
         end
         
         # For pooled connections it is necessary to empty the pool of the parents connections so that they
