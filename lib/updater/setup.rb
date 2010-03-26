@@ -14,6 +14,10 @@ module Updater
         new(config_file).stop
       end
       
+      def client_setup(options = {})
+        new(config_file, options).client_setup
+      end
+      
       def monitor
         
       end
@@ -54,10 +58,12 @@ module Updater
     
     # The client is responcible for loading classes and making connections.  We will simply setup the Updater spesifics
     def client_setup
-      if @options[:socket]
+      set_orm
+      
+      if @options[:socket] && File.exists?(@options[:socket])
         Updater::Update.socket = UNIXSocket.new(@options[:socket])
       elsif @options[:udp]
-        socket = UNIXSocket.new()
+        socket = UDPSocket.new()
         socket.connect(@options[:host],@options[:udp])
         Updater::Update.socket = socket
       elsif @options[:tcp]
@@ -70,12 +76,15 @@ module Updater
       if File.exists? @options[:pid_file]
         Updater::Update.pid = File.read(@options[:pid_file]).strip
       end
+      
+      
     end
     
     private
     
-    def _start
-      #set ORM
+    def set_orm
+      #don't setup twice.  Client setup might call this as part of server setup in which case it is already done
+      return false if Updater::Update.orm
       orm = @options[:orm] || "datamapper"
       case orm.downcase
         when "datamapper"
@@ -91,10 +100,15 @@ module Updater
           require "update/orm/#{orm}"
           Updater::Update.orm = Object.const_get("ORM").const_get(orm.capitalize)
       end
+      @logger.info "Data store '#{orm}' selected"
+    end
+    
+    def _start
+      #set ORM
+      set_orm
       #init DataStore
       default_options = {:adapter=>'sqlite3', :database=>'./default.db'}
       Updater::Update.orm.setup((@options[:database] || @options[:orm_setup] || default_options).merge(:logger=>@logger))
-      @logger.info "Data store '#{orm}' successfully loaded"
       #load Models
       
       models = @options[:models] || Dir.glob('./app/models/**/*.rb')

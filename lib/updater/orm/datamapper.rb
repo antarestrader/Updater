@@ -112,6 +112,7 @@ module Updater
           return nxt.time - tnow
         end
         
+        #Returns the Locked Job or nil if no jobs were availible.
         def lock_next(worker)
           updates = worker_set
           unless updates.empty?
@@ -124,6 +125,7 @@ module Updater
             updates.each do |u|
               return u if u.lock(worker)
             end
+            return nil
           end
         rescue DataObjects::ConnectionError
           sleep 0.1
@@ -149,6 +151,7 @@ module Updater
           myname ? search.all(:name=>myname ) : search
         end
         
+        #For the server only, setup the connection to the database
         def setup(options)
           ::DataMapper.logger = options.delete(:logger)
           ::DataMapper.setup(:default,options)
@@ -157,7 +160,10 @@ module Updater
         # For pooled connections it is necessary to empty the pool of the parents connections so that they
         # do not comtiminate the child pool. Note that while Datamapper is thread safe, it is not safe accross a process fork.
         def before_fork
-          DataObjects::Pooling.pools.each {|p| p.dispose} if defined? DataObjects::Polling
+          return unless (defined? ::DataObjects::Pooling)
+          return if ::DataMapper.repository.adapter.kind_of?(::DataMapper::Adapters::Sqlite3Adapter)
+          ::DataMapper.logger.debug "+-+-+-+-+ Cleaning up connection pool (#{::DataObjects::Pooling.pools.length}) +-+-+-+-+"
+          ::DataObjects::Pooling.pools.each {|p| p.dispose} 
         end
         
         def after_fork
@@ -189,8 +195,8 @@ module Updater
       belongs_to :caller, :model=>Updater::ORM::DataMapper, :child_key=>[:caller_id]
       belongs_to :target, :model=>Updater::ORM::DataMapper, :child_key=>[:target_id]
 
-      property :params, Object, :nullable=>true #:required=>false
-      property :occasion, String,  :nullable=>false #:required=>true
+      property :params, Object, :required=>false 
+      property :occasion, String,  :required=>true
     end
 
   end#ORM

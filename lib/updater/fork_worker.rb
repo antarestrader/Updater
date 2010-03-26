@@ -240,6 +240,7 @@ module Updater
       
       def fork_cleanup
         QUEUE_SIGS.each { |signal| trap(signal,"IGNORE") }
+        Update.orm.after_fork
         if @self_pipe !=nil
           @self_pipe.each {|io| io.close}
         end
