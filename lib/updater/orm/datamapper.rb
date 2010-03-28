@@ -161,7 +161,7 @@ module Updater
         # do not comtiminate the child pool. Note that while Datamapper is thread safe, it is not safe accross a process fork.
         def before_fork
           return unless (defined? ::DataObjects::Pooling)
-          return if ::DataMapper.repository.adapter.kind_of?(::DataMapper::Adapters::Sqlite3Adapter)
+          return if ::DataMapper.repository.adapter.to_s =~ /Sqlite3Adapter/
           ::DataMapper.logger.debug "+-+-+-+-+ Cleaning up connection pool (#{::DataObjects::Pooling.pools.length}) +-+-+-+-+"
           ::DataObjects::Pooling.pools.each {|p| p.dispose} 
         end

@@ -95,6 +95,7 @@ module Updater
       def start(options = {})
         initial_setup(options) #need this for logger
         logger.info "*** Starting Master Process***"
+        $0 = 'Fork Worker Master'
         logger.info "* Adding the first round of workers *"
         maintain_worker_count
         QUEUE_SIGS.each { |sig| trap_deferred(sig) }
@@ -321,6 +322,7 @@ module Updater
     
     #loop "forever" working off jobs from the queue
     def run
+      $0 = name
       @continue = true
       heartbeat
       trap(:QUIT) do 
