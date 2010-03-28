@@ -1,4 +1,4 @@
-updater
+Updater
 =======
 
 This plugin provides database driven delayed exicution of DataMapper model
