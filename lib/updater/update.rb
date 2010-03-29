@@ -202,7 +202,7 @@ module Updater
         hash[:finder] = options[:finder] || hash[:finder]
         hash[:finder_args] = options[:finder_args] || hash[:finder_args]
         
-        hash[:method] = method || :process
+        hash[:method] = method || :perform
         hash[:method_args] = args
         
         [:name,:failure,:success,:ensure].each do |opt|
