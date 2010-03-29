@@ -124,7 +124,7 @@ Scheduling Jobs
 
 The core of Updater is placing Jobs on the queue to be run.
 Jobs are scheduled using methods on the `Updater::Update` class.
-Please see the rdoc entry for `Updater::Update#at` for more details.
+Please see the rdoc entry for `Updater::Update#at` for more details
 The following methods can be used to schedule jobs:
 * `at(time, target, method, args, options)`: Schedules a job to run at a given time
 * `in(delay, target, method, args, options)`: Schedules a job to run after a given interval
@@ -140,3 +140,48 @@ Either leave this blank, or set to `[]` to call without arguments.
 All members of the array must be marshalable.
 
 **options**: a hash of extra information, details can be found in the Options section.
+
+We intend to add a module that can be included into a target class
+that will allow scheduling in the same general manner as delayed_job.
+This addation is planned for version 1.2.
+
+The Configuration File
+----------------------
+
+In updater both client and server use a single configuration file.
+The location of this file can be set using the `UPDATE_CONFIG` environment variable.
+When this is not set Updater will instead look for some intelligently chosen defaults.
+These defaults are based on the assumption 
+that the client is one of a number of popular web frameworks 
+that use the rails directory structure.
+It will look in either the current working directory or a subdirectory called `config`
+(with preference for the latter) for a file called `updater.config`.
+Failing that it will look for a .updater file in the current working directory.
+Rake files should endeavor to set an appropriate working directory
+before invoking the setup tasks.
+
+The configuration itself is a ERb interpreted YAML file.
+This is of use in limiting repetition, 
+and in changing options based on the environment (test/development/production)
+
+Please see the options section for details about the various options in this file.
+
+Starting Workers (Server)
+-------------------------
+
+In the parlance of background job processing, 
+a process that executes jobs is known as a worker.
+The recommended way to start workers is through a rake task.
+First, include `updater/tasks` in your application's Rakefile.
+This will add start, stop and monitor tasks into the `updater` namespace.
+`start` will use the options in your configuration file to start  a worker process.
+Likewise, `stop` will shut that process down.
+The monitor task will start an http server 
+that you can use to monitor and control the job queue and workers.
+(This feature is not currently implemented)
+
+Individual workers are initialized and shutdown by a master process 
+which monitors the work load and starts or stops individual workers as needed
+within the limits established in the configuration file.
+You should, therefore, only need to use `start` once.
+
