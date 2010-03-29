@@ -69,8 +69,8 @@ Initial Installation
 Updater comes packaged as a gem and is published on GemCutter.
 Get the latest version with `gem install updater`
 
-Setup
------
+Consepts
+--------
 
 Updater is not complex to use but it does, of necessity, have a number of *moving parts*.
 In order to use updater successfully two tasks must be accomplished:
@@ -83,3 +83,61 @@ Usually this data store will be a table in your database.
 Other data stores are possible, but require significantly configuration.
 Updater is designed to have a minimal impact on the load of the data store,
 and it therefore should be a reasonable solution for most applications. 
+(For a discussion of when this is not a reasonable solution see 
+[the Rescue Blog Post](http://github.com/blog/542-introducing-resque))
+
+Updater is very flexible about what can be run in as a background job.
+The Job will call a single method on either a Class or an instance.
+The method must be public.
+Any arguments can be passed to the method so long as the can be marshaled.
+It is important to keep in mind that the job will be run in a completely separate process.
+Any global state will have to be recreated,
+and data must be persisted in some form in order to be seen by the client.
+For web applications this is usually not an issue.
+
+Calling a class method is fairly strait forward,
+but calling a method on in instance take a little more work.
+Instances must be somehow persisted in the client
+then reinstantiated on the worker process.
+The assumption is that this will be don through the ORM and data store.
+Each ORM adapter in Updater lists a defaults methods 
+for retrieving particular instances from the data store.
+When an instance is scheduled as the target of a job,
+its class and id will be stored in the `updates` table.
+When the job is run it will first use the it to pull the instance out of the data store,
+then call the appropriate method on that instance.
+
+Client Setup
+------------
+
+The client application needs to do two things to be able to effectively schedule jobs:
+1) require the `updater` library, and
+2) call the `Updater::Setup.client_setup` method during initialization.
+The `client_setup` method is responsible for establishing interprocess communication with the server,
+and selecting the correct ORM adapter for Updater.
+It does this using the configuration file discussed later in this document.
+This method can take an optional hash that will override the options in the configuration file.
+It can also be passes a `:logger` option which will use the passed in logger instance for updater logging.
+
+Scheduling Jobs
+---------------
+
+The core of Updater is placing Jobs on the queue to be run.
+Jobs are scheduled using methods on the `Updater::Update` class.
+The following methods can be used to schedule jobs:
+  * `at(time, target, method, args, options)`: Schedules a job to run at a given time
+  * `in(delay, target, method, args, options)`: Schedules a job to run after a given interval
+  * `immidiate(target, method, args, options)`: Schedules a job to run immidiatly.
+  
+**target**: is the object (class or instance) that the method will be called on.
+
+**method**: the method name as a string or symbol.
+If this is unspesified `:preform` is asumed (a la Resque)
+
+**args**: an array of objects that will be passed as arguments to the method.
+Either leave this blank, or set to `[]` to call without arguments.
+All members of the array must be marshalable.
+
+**options**: a hash of extra information, details can be found in the Options section.
+
+Please see the rdoc entry for `Updater::Update#at` for more details
