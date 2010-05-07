@@ -1,6 +1,8 @@
 require 'rubygems'
 require 'rake/gempackagetask'
+gem 'rspec', '=1.3.0'
 require 'spec/rake/spectask'
+
 
 VERSION_FILE = File.join(File.dirname(__FILE__), 'VERSION')
 
@@ -23,8 +25,8 @@ spec = Gem::Specification.new do |s|
   s.author = AUTHOR
   s.email = EMAIL
   s.homepage = HOMEPAGE
-  s.add_dependency('datamapper', '>= 0.10.2')
-  s.add_development_dependency('rspec', '>= 1.2.6')
+  s.add_development_dependency('datamapper', '>= 0.10.2')
+  s.add_development_dependency('rspec', '=1.3.0')
   s.add_development_dependency('timecop', '>= 0.2.1')
   s.add_development_dependency('chronic', '>= 0.2.3')
   s.require_path = 'lib'
