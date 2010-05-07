@@ -126,6 +126,7 @@ The core of Updater is placing Jobs on the queue to be run.
 Jobs are scheduled using methods on the `Updater::Update` class.
 Please see the rdoc entry for `Updater::Update#at` for more details
 The following methods can be used to schedule jobs:
+
 * `at(time, target, method, args, options)`: Schedules a job to run at a given time
 * `in(delay, target, method, args, options)`: Schedules a job to run after a given interval
 * `immidiate(target, method, args, options)`: Schedules a job to run immidiatly.
