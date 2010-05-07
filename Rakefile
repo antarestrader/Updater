@@ -19,7 +19,7 @@ spec = Gem::Specification.new do |s|
   s.date = File.ctime(VERSION_FILE)
   s.platform = Gem::Platform::RUBY
   s.has_rdoc = true
-  s.extra_rdoc_files = ["README", "LICENSE", "VERSION"]
+  s.extra_rdoc_files = ["README.markdown", "LICENSE", "VERSION"]
   s.summary = SUMMARY
   s.description = s.summary
   s.author = AUTHOR
@@ -31,7 +31,7 @@ spec = Gem::Specification.new do |s|
   s.add_development_dependency('chronic', '>= 0.2.3')
   s.require_path = 'lib'
   s.bindir = 'bin'
-  s.files = %w(LICENSE README Rakefile VERSION) + Dir.glob("{lib,spec,bin}/**/*")
+  s.files = %w(LICENSE README.markdown Rakefile VERSION) + Dir.glob("{lib,spec,bin}/**/*")
   
 end
 
