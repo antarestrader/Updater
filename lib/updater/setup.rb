@@ -22,8 +22,10 @@ module Updater
         
       end
           
-      def config_file
-        if ENV['UPDATE_CONFIG'] && File.exists(ENV['UPDATE_CONFIG'])
+      def config_file(options = {})
+        if options[:config_file] && File.exists(options[:config_file])
+          option[:config_file]
+        elsif ENV['UPDATE_CONFIG'] && File.exists(ENV['UPDATE_CONFIG'])
           ENV['UPDATE_CONFIG']
         else
           (Dir.glob('{config,.}/updater.config') + Dir.glob('.updater')).first
@@ -36,12 +38,12 @@ module Updater
     #extended used for clients who wnat to override parameters
     def initialize(file_or_hash, extended = {})
       @options = file_or_hash.kind_of?(Hash) ? file_or_hash : load_file(file_or_hash)
-      @options.merge(extended)
+      @options.merge!(extended)
       @options[:pid_file] ||= File.join(ROOT,'updater.pid')
       @options[:host] ||= "localhost"
       @logger = @options[:logger] || Logger.new(@options[:log_file] || STDOUT)
       level = Logger::SEV_LABEL.index(@options[:log_level].upcase) if @options[:log_level]
-      @logger.level = level || Logger::WARN 
+      @logger.level = level || Logger::WARN unless @options[:logger] #only set this if we were not handed a logger
     end
     
     def start
@@ -56,11 +58,13 @@ module Updater
       Process.kill("TERM",File.read(@options[:pid_file]).to_i)
     end
     
-    # The client is responcible for loading classes and making connections.  We will simply setup the Updater spesifics
+    # The client is responcible for loading classes and making connections.  We will simply setup the Updater spesifics.
     def client_setup
+      @logger.info "Updater Client is being initialized..."
       set_orm
       
       if @options[:socket] && File.exists?(@options[:socket])
+        @logger.debug "Using UNIX Socket \"#{@options[:socket]}\""
         Updater::Update.socket = UNIXSocket.new(@options[:socket])
       elsif @options[:udp]
         socket = UDPSocket.new()
@@ -86,13 +90,13 @@ module Updater
       #don't setup twice.  Client setup might call this as part of server setup in which case it is already done
       return false if Updater::Update.orm
       orm = @options[:orm] || "datamapper"
-      case orm.downcase
+      case orm.to_s.downcase
         when "datamapper"
           require 'updater/orm/datamapper'
           Updater::Update.orm = ORM::DataMapper
         when "mongodb"
-          require 'updater/orm/mongodb'
-          Updater::Update.orm = ORM::MongoDB
+          require 'updater/orm/mongo'
+          Updater::Update.orm = ORM::Mongo
         when "activerecord"
           require 'updater/orm/activerecord'
           Updater::Update.orm = ORM::ActiveRecord
@@ -103,12 +107,16 @@ module Updater
       @logger.info "Data store '#{orm}' selected"
     end
     
+    def init_orm
+      default_options = {:adapter=>'sqlite3', :database=>'./default.db'}
+      Updater::Update.orm.setup((@options[:database] || @options[:orm_setup] || default_options).merge(:logger=>@logger))
+    end
+    
     def _start
       #set ORM
       set_orm
       #init DataStore
-      default_options = {:adapter=>'sqlite3', :database=>'./default.db'}
-      Updater::Update.orm.setup((@options[:database] || @options[:orm_setup] || default_options).merge(:logger=>@logger))
+      init_orm
       #load Models
       
       models = @options[:models] || Dir.glob('./app/models/**/*.rb')
@@ -116,6 +124,7 @@ module Updater
         require file
       end
       
+       
       #establish Connections
       @options[:host] ||= 'localhost'
       #Unix Socket -- name at @options[:socket]
@@ -164,7 +173,7 @@ module Updater
       @config_file = File.expand_path(file.path)
       YAML.load(ERB.new(file.read).result(binding)) || {}
     ensure
-      file.close
+      file.close if file.kind_of?(IO) && !file.closed?
     end
   end
 end

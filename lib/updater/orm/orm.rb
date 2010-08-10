@@ -106,7 +106,7 @@ module Updater
     class Base
       
       # Every ORM should set this constant to a symbol that matches the most
-      # obvious method used to retrive a known instance.  :get or:find are likely
+      # obvious method used to retrive a known instance.  :get or :find are likely
       # candidates. 
       FINDER= nil
       

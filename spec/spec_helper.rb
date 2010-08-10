@@ -3,11 +3,12 @@ require "rubygems"
 ROOT = File.join(File.dirname(__FILE__), '..')
 $LOAD_PATH << File.join(File.dirname(__FILE__), '../lib')
 
-require "spec" # Satisfies Autotest and anyone else not using the Rake tasks
+require "rspec" # Satisfies Autotest and anyone else not using the Rake tasks
 require "dm-core"
+require 'dm-migrations'
 
 require 'updater'
-require 'updater/thread_worker'
+#require 'updater/thread_worker'
 require 'updater/fork_worker'
 require 'updater/orm/datamapper'
 

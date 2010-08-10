@@ -43,6 +43,7 @@ module Updater
     end
     
     def initialize(orm_inst)
+      raise ArgumentError if orm_inst.nil?
       @orm = orm_inst
     end
     
@@ -346,7 +347,7 @@ module Updater
       
       # Given some instance return the information needed to recreate that target 
       def target_for(inst)
-        return [inst, nil, nil] if inst.kind_of? Class
+        return [inst, nil, nil] if (inst.kind_of?(Class) || inst.kind_of?(Module))
         [inst.class,@orm::FINDER,inst.send(orm::ID)]
       end
       

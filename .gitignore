@@ -7,3 +7,4 @@ TODO
 *.log
 *.html
 lib/updater/update_*.rb
+*~

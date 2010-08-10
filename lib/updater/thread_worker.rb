@@ -7,7 +7,6 @@ module Updater
 
   #This class repeatedly searches the database for active jobs and runs them
   class ThreadWorker
-    cattr_accessor :logger
     attr_accessor :pid
     attr_accessor :name
     
