@@ -20,7 +20,7 @@ module Updater
         end
       end
       
-      %w{time finder finder_args method method_args name persistance lock_name}.each do |field|
+      %w{time finder finder_args method method_args name persistant lock_name}.each do |field|
         eval(<<-EOF)  #,__LINE__+1,__FILE__)
           def #{field};@hash['#{field}'];end
           def #{field}=(value);@hash['#{field}'] = value;end
@@ -49,11 +49,11 @@ module Updater
       
       def save
         #todo validation
-        self.class.collection.save @hash
+        _id = self.class.collection.save @hash
       end
       
       def destroy
-        @collection.remove({:_id=>id})
+        self.class.collection.remove({:_id=>id})
       end
       
       def [](arg)  #this allows easy mapping for time when a value coud either be U::ORM::Mongo or an ordered hash
@@ -97,6 +97,7 @@ module Updater
           @hash[mode] << hval
           super aval
         end
+        ret
       end
       
       def lock(worker)
@@ -143,7 +144,8 @@ module Updater
           hash['update'] = {'$set'=>{:lock_name=>worker.name}}
           hash['new'] = true
           
-          ret = @db.command hash
+          
+          ret = @db.command hash, :check_response=>false
           return nil unless ret['ok'] == 1
           return new(ret['value'])
         end 
@@ -177,7 +179,8 @@ module Updater
         end
         
         def create(hash)
-          new(hash).save
+          ret = new(hash)
+          ret.save and ret
         end
         
         def clear_all
@@ -185,7 +188,7 @@ module Updater
         end
         
         def clear_locks(worker)
-          coll.update({:lock_name=>worker.name},{'$unset'=>{:lock_name=>1}},:multi=>true)
+          @collection.update({:lock_name=>worker.name},{'$unset'=>{:lock_name=>1}},:multi=>true)
         end
         
         private

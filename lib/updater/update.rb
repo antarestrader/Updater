@@ -24,7 +24,8 @@ module Updater
         run_chain :ensure
         begin
           @orm.destroy unless @orm.persistant
-        rescue DataObjects::ConnectionError
+        rescue StandardError => e
+          raise e unless e.class.to_s =~ /Connection/
           sleep 0.1
           retry
         end
@@ -124,6 +125,10 @@ module Updater
       # This is an open IO socket that will be writen to when a job is scheduled. If it is unset
       # then @pid is signaled instead.
       attr_accessor :socket
+      
+      def logger
+        @logger ||= @orm.logger || Logger.new(STDOUT)
+      end
       
       #Gets a single job form the queue, locks and runs it.  it returns the number of second
       #Until the next job is scheduled, or 0 is there are more current jobs, or nil if there 

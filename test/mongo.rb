@@ -11,6 +11,9 @@ $LOAD_PATH << File.join(ROOT, '../lib')
 require 'updater'
 require 'updater/setup'
 require 'updater/thread_worker'
+require File.expand_path(File.join(ROOT,'cascade/target.rb'))
+
+Target.socket = STDOUT
 
 include Updater
 
@@ -27,6 +30,8 @@ Update.orm.setup :database=>'test', :logger=>logger
 
 Update.clear_all
 
-debugger
+Update.immidiate Target, :method1
+
+Update.work_off(worker)
 
 logger.warn "Finished"

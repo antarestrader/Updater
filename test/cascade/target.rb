@@ -4,6 +4,11 @@ class Target
   include Updater
   class << self
     include Updater
+    
+    def socket=(s)
+      @socket = s
+    end
+    
     def socket
       @socket ||= open_socket
     end
@@ -13,7 +18,7 @@ class Target
     end
     
     def error_reporter(job)
-       DataMapper.logger.info "Error #{job.error.inspect})"
+      Update.logger.info "Error #{job.error.inspect})"
       socket.puts job.error.inspect
     end
     
@@ -40,7 +45,7 @@ class Target
     }
     
     def spawner(cnt = 0, str="initial")
-      DataMapper.logger.info "Spawner called at #{ts} (#{str} #{cnt})"
+      Updater.logger.info "Spawner called at #{ts} (#{str} #{cnt})"
       socket.puts "Spawner called at #{ts} (#{str} #{cnt})"
       load = Update.load
       sleep SIM_WORK[str] || 0.0 unless load > 100 #simulating work
