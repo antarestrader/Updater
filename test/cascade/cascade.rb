@@ -1,19 +1,40 @@
 require "rubygems"
 require "logger"
+require "yaml"
+require "erb"
+require "ruby-debug"
 
 ROOT = File.join(File.dirname(__FILE__))
 $LOAD_PATH << File.join(File.dirname(__FILE__), '../../lib')
 
-require "dm-core"
-
 require 'updater'
 require 'updater/setup'
 
-require File.join(ROOT, 'target.rb')
+require File.expand_path(File.join(ROOT, 'target.rb'))
 #TODO setup config for this
-DataMapper.setup(:default, :adapter=>'mysql', :database=>'simulate', :user=>'test', :password=>nil, :host=>'localhost')
 
-Updater::Setup.client_setup
+cfg_file = ARGV[0] || 'updater.config'
+unless File.exists?(cfg_file)
+  puts "Cannot find config file \"#{cfg_file}\""
+  puts "Usage: ruby cascade.rb [config_file]"
+  exit -1
+end
+
+File.open(cfg_file) do |file|
+  @options = YAML.load(ERB.new(file.read).result(binding)) || {}
+end
+
+case @options[:orm].to_sym
+  when :datamapper
+    require 'dm-core'
+    require 'dm-migrations'
+    DataMapper.setup(:default, @options[:database])
+    DataMapper.auto_migrate!
+    Updater::Setup.client_setup @options
+  when :mongodb
+    Updater::Setup.client_setup @options
+    Updater::Update.orm.setup @options[:database].merge(:logger=>Updater::Update.logger)
+end
 
 Updater::Update.clear_all
 

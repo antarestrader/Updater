@@ -49,6 +49,16 @@ module Updater
       
       def save
         #todo validation
+        [:failure,:success,:ensure].each do |mode|
+          next unless @hash[mode]
+          @hash[mode] = @hash[mode].map do |job|
+            if job.kind_of? Updater::Update
+              job.save unless job.id
+              job = job.id
+            end
+            job
+          end
+        end
         _id = self.class.collection.save @hash
       end
       
@@ -58,6 +68,16 @@ module Updater
       
       def [](arg)  #this allows easy mapping for time when a value coud either be U::ORM::Mongo or an ordered hash
         @hash[arg]
+      end
+      
+      def lock(worker)
+        raise NotImplimentedError, "Use lock_next"
+      end
+      
+      # Non API Standard.  This method returns the collection used by this instance.
+      # This is used to create Job Chains
+      def collection
+        self.class.instance_variable_get(:@collection)
       end
 
       #key :time, Integer, :numeric=>true
@@ -71,37 +91,76 @@ module Updater
       #key :lock_name
       
       %w{failure success ensure}.each do |mode|
-        eval(<<-EOF) #,__FILE__,__LINE__+1)
+        eval(<<-EOF, binding ,__FILE__, __LINE__+1)
           def #{mode}
             @#{mode} ||= init_chain(:#{mode})
+          end
+          
+          def #{mode}=(chain)
+            @#{mode} , @hash[:#{mode}]  = build_chain_arrays([chain].flatten)
+            attach_intellegent_insertion(@#{mode},:#{mode},self) if @#{mode}
           end
         EOF
       end
       
-      def init_chain(mode)
-        ret = [@hash[mode.to_s] || []].flatten
-        unless ret.empty?
-          ret = @collection.find(:_id=>{'$in'=>ret}).map {|i| self.class.new(i)}
-        end
-        ret.define_singleton_method '<<' do |val|
-          val = BSON::ObjectID.fron_string(val) if val.kind_of? String
-          aval,hval = case val
-            when self.class
-              [val,val.id]
-            when Hash
-              [self.class.new(val),val['_id']]
-            when BSON::ObjectID
-              [@collection.find_one(val),val]
+    private
+      # this method is calld from he chain asignment methods eg. failure=(chain) 
+      # chain is an array which may contain BSON::ObjectID's or Updater::Update's or both
+      # For BSON::ObjectID's we cannot initialize them as this could leed to infinate loops.
+      # (an object pool would solve this problem, but feels like overkill)
+      # The final result must be a @hash containing all the BSON::ObjectID' (forign keys)
+      # and possibly @failure containting all instanciated UpdaterUpdates read to be called
+      # or @failure set to nil with the chain instanciated on first use.
+      def build_chain_arrays(arr, build = false)
+        build ||= arr.any? {|j| Updater::Update === j || Hash === j}
+        output = arr.inject({:ids=>[],:instances=>[]}) do |accl,j|
+          inst, id = rationalize_instance(j)
+          if inst.nil? && build
+            debugger
+            inst = Updater::Update.new(self.class.new(collection.find_one(id)))
           end
-          @hash[mode] ||= []
-          @hash[mode] << hval
-          super aval
+          accl[:ids] << id || inst #id will be nil only if inst has not ben saved.
+          accl[:instances] << inst if inst
+          accl
         end
-        ret
+        if build
+          return [output[:instances],output[:ids]]
+        end
+        [nil,output[:ids]]
       end
       
-      def lock(worker)
-        raise NotImplimentedError, "Use lock_next"
+      # This method takes something that may be a reference to an instance(BSON::ObjectID/String),
+      # an instance its self (Updater::Update), or a Hash 
+      # and returns a touple of the  Updater::Update,BSON::ObjectID.
+      # This method will bot instanciate object from BSON::ObjectID's
+      # nor will it save Hashes inorder to obtain an ID (it will creat a new Updater::Update from the hash).
+      # Instead it will return nil in the appropriate place.
+      def rationalize_instance(val)
+        val = BSON::ObjectID.fron_string(val) if val.kind_of? String
+        case val  #aval is the actual runable object, hval is a BSON::ObjectID that we can put into the Database
+          when Updater::Update
+            [val,val.id]
+          when Hash
+            [Updater::Update.new(val),val['_id']]
+          when BSON::ObjectID
+            [nil,val]
+        end  
+      end
+      
+      def attach_intellegent_insertion(arr,mode,parent)
+        arr.define_singleton_method '<<' do |val|
+          inst, id = rationalize_instance(val)
+          inst = Updater::Update.new(self.class.new(parent.collection.find_one(id))) unless inst
+          parent.instance_variable_get(:@hash)[mode] ||= []
+          parent.instance_variable_get(:@hash)[mode] << id || inst
+          super inst
+        end
+        arr
+      end
+      
+      def init_chain(mode)
+        ret, @hash[mode] = build_chain_arrays(@hash[mode] || [],true)
+        attach_intellegent_insertion(ret,mode,self)
       end
       
       class << self
@@ -134,6 +193,14 @@ module Updater
             logger.warn "Updater MongoDB Driver is creating a new collection, \"#{collection_name}\" in \"#{options[:database]}\""
           end
           @collection = db.collection(collection_name)
+        end
+        
+        def before_fork
+          @db.connection.close
+        end
+        
+        def after_fork
+          
         end
         
         def lock_next(worker)

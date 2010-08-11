@@ -30,7 +30,14 @@ Update.orm.setup :database=>'test', :logger=>logger
 
 Update.clear_all
 
-Update.immidiate Target, :method1
+err_rpt = Updater::Update.chain(Target,:error_reporter,[:__job__])
+
+Update.immidiate(Target, :method1,[], :failure=>err_rpt)
+
+u = Update.orm.lock_next(worker)
+
+fs = u.failure
+debugger
 
 Update.work_off(worker)
 

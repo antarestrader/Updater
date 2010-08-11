@@ -1,18 +1,111 @@
 #!/usr/bin/env ruby
 
-puts "starting update deamon..."
+require 'optparse'
 
-require 'rubygems'
-require 'yaml'
-require 'updater'
-equire 'updater/worker'
+OPERATIONS = %w{start stop noop} # restart}
+WORKERS = %w{fork thread}
 
+options = {}
 
-dbconfig = YAML.load_file('config/database.yml')
+opts = OptionParser.new do |opts|
+  opts.banner = <<EOF
+Updater: Ruby Job Processor. Copyright John F. Miller 2009-2010  
 
-DataMapper.setup(dbconfig['development'])
+Usage: updater (#{OPERATIONS.join('|')}) [options]"
+  Start of stop the Updater job queue processor.
+EOF
+  opts.on("-l","--local", "Use local 'lib' directory instead of Gems.") do
+    $LOAD_PATH << File.join(File.dirname(__FILE__), '../lib')
+  end
+  
+  opts.on("-c","--config-file [FILE]", "File containing configuration data.", "  default: ENV['UPDATE_CONFIG'] || updater.config") do |f|
+    options[:config_file] = f
+  end
+  
+  opts.on("--log-file [FILE]", "Where to send the log output.", "  default: STDOUT") do |f|
+    options[:log_file] = f
+  end
+  
+  opts.on("-d","--debug", "Output lots of extra data to the log file") do
+    options[:log_level] = "DEBUG"
+  end
+  
+  opts.on("-w","--worker WORKERTYPE", "(#{WORKERS.join('|')}) type of worker to use", "  default: fork (must be set to 'thread' for Windows)") do |w|
+    unless WORKERS.include? w
+      puts "** Invalid worker type **\n\n",opts 
+      exit -1 
+    end
+    options[:worker] = w
+  end
+  
+  opts.on("-m","--monitor", "Start/Stop the HTTP queue monitor", "  Not yet implimented") do  #TODO
+    puts "HTTP Monitor Not Yet Implimented."
+    exit  -1  
+  end
+  
+  opts.separator "\n  -- IPC Options: These options will need to be matched by the client --\n"
+  opts.on('-p','--pid-file FILE', 'The name of the PID file.') do |f|
+    options[:pid_file] = f
+  end
+  
+  opts.on('-s','--unix-socket FILE', 'Socket to be used for UNIX Socket IPC.') do |f|
+    options[:socket] = f
+  end
+  
+  opts.on('--host [HOST]', 'For UDC and TCP the host name. (See Security section in README)', '  default: localhost') do |h|
+    options[:host] = 'localhost'
+  end
+  
+  opts.on('-u','--udp PORT', 'Port to send/recieve UDP messages. (See Security section in README)') do |p|
+    options[:udp] = p
+  end
+  
+  opts.on('-t','--tcp PORT', 'Port to send/recieve tcp messages. (See Security section in README)') do |p|
+    options[:tcp] = p
+  end
+  
+  opts.on('-r','--remote-http PORT', 'Port to send/recieve HTTP service requests.', ' Not Yet Implimented') do |p|
+    options[:tcp] = p
+  end
 
-Worker.new.start
+  
+  opts.separator "\n  -- Additional Information --\n"
+  opts.on_tail("-v", "--version", "Show Version information.") do
+    options[:version] = true
+  end
+  
+  opts.on_tail("-h", "--help", "show this message.") do
+    puts opts
+    exit
+  end
+end
+
+opts.parse!
+
+require 'updater' #must wait for -l option
+
+if options[:version]
+  puts(<<EOF)
+Updater: Ruby Job Processor. Version #{Updater::VERSION}
+  Copyright John F. Miller 2009-2010    
+EOF
+  exit
+end
+
+operation = ARGV.shift
+
+operation = operation.downcase if operation
+
+unless OPERATIONS.include? operation
+  puts "#{operation}: operation not supported" if operation
+  puts opts
+  exit
+end
+
+require 'updater/setup'
+
+Updater::Setup.send(operation,options)
+
 
 
 

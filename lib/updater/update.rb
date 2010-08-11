@@ -125,9 +125,10 @@ module Updater
       # This is an open IO socket that will be writen to when a job is scheduled. If it is unset
       # then @pid is signaled instead.
       attr_accessor :socket
+      attr_writer :logger
       
       def logger
-        @logger ||= @orm.logger || Logger.new(STDOUT)
+        @logger ||= Logger.new(STDOUT)
       end
       
       #Gets a single job form the queue, locks and runs it.  it returns the number of second

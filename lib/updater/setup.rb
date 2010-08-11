@@ -6,16 +6,20 @@ require 'erb'
 module Updater
   class Setup
     class << self
-      def start
-        new(config_file).start
+      def start(options={})
+        new(config_file(options), options).start
       end
       
-      def stop
-        new(config_file).stop
+      def stop(options={})
+        new(config_file(options), options).stop
+      end
+      
+      def noop(options={})
+        new(config_file(options), options).noop
       end
       
       def client_setup(options = {})
-        new(config_file, options).client_setup
+        new(config_file(options), options).client_setup
       end
       
       def monitor
@@ -23,8 +27,8 @@ module Updater
       end
           
       def config_file(options = {})
-        if options[:config_file] && File.exists(options[:config_file])
-          option[:config_file]
+        if options[:config_file] && File.exists?(options[:config_file])
+          options[:config_file]
         elsif ENV['UPDATE_CONFIG'] && File.exists(ENV['UPDATE_CONFIG'])
           ENV['UPDATE_CONFIG']
         else
@@ -44,6 +48,8 @@ module Updater
       @logger = @options[:logger] || Logger.new(@options[:log_file] || STDOUT)
       level = Logger::SEV_LABEL.index(@options[:log_level].upcase) if @options[:log_level]
       @logger.level = level || Logger::WARN unless @options[:logger] #only set this if we were not handed a logger
+      @logger.debug "Debugging output enabled"
+      Update.logger = @logger
     end
     
     def start
@@ -56,6 +62,17 @@ module Updater
     
     def stop
       Process.kill("TERM",File.read(@options[:pid_file]).to_i)
+      sleep 1.0
+    end
+    
+    def noop
+      @logger.warn "NOOP: will not start service"
+      set_orm
+      init_orm
+      load_models
+      client_setup
+      @logger.debug @options.inspect
+      exit
     end
     
     # The client is responcible for loading classes and making connections.  We will simply setup the Updater spesifics.
@@ -112,19 +129,27 @@ module Updater
       Updater::Update.orm.setup((@options[:database] || @options[:orm_setup] || default_options).merge(:logger=>@logger))
     end
     
+    def load_models
+      @logger.info "Loading Models..."
+      models = @options[:models] || Dir.glob('./app/models/**/*.rb')
+      models.each do |file|
+        @logger.debug "  - loading file: #{file}"
+        begin
+          require file
+        rescue LoadError
+          require File.expand_path(File.join(Dir.pwd,file))
+        end
+      end
+    end
+        
     def _start
       #set ORM
       set_orm
       #init DataStore
       init_orm
       #load Models
+      load_models
       
-      models = @options[:models] || Dir.glob('./app/models/**/*.rb')
-      models.each do |file|
-        require file
-      end
-      
-       
       #establish Connections
       @options[:host] ||= 'localhost'
       #Unix Socket -- name at @options[:socket]
