@@ -7,13 +7,14 @@ module Updater
     # Contains the Error class after an error is caught in +run+. Not stored to the database
     attr_reader :error
     attr_reader :orm
+    attr_accessor :params
     
     #Run the action on this traget compleating any chained actions
-    def run(job=nil,params=nil)
+    def run(job=nil)
       ret = true #put return in scope
       begin
         t = target 
-        final_args = sub_args(job,params,@orm.method_args)
+        final_args = sub_args(job,@orm.method_args)
         t.send(@orm.method.to_sym,*final_args)
       rescue => e
         @error = e
@@ -77,14 +78,14 @@ module Updater
     
   private
       
-    def sub_args(job,params,a)
+    def sub_args(job,a)
       a.map do |e| 
         begin
           case e.to_s
             when '__job__'
               job
             when '__params__'
-              params
+              @params
             when '__self__'
               self
             else
@@ -104,7 +105,7 @@ module Updater
       chains = @orm.send(name)
       return unless chains
       chains.each do |job|
-        Update.new(job.target).run(self,job.params)
+        job.run(self)
       end
     rescue NameError
       puts @orm.inspect
@@ -136,7 +137,10 @@ module Updater
       #are no jobs scheduled.
       def work_off(worker)
         inst = @orm.lock_next(worker)
-        new(inst).run if inst
+        if inst
+          worker.logger.debug "  running job #{inst.id}" 
+          new(inst).run
+        end
         @orm.queue_time
       ensure
         clear_locks(worker)

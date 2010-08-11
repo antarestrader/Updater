@@ -14,11 +14,13 @@ class Target
     end
     
     def open_socket
-      UNIXSocket.open(File.join(File.dirname(__FILE__),'cascade.sock'))
+      socket = UNIXSocket.open(File.join(File.dirname(__FILE__),'cascade.sock'))
+      socket.puts "Target.rb:18 has opened socket pid: #{Process.pid}"
+      socket
     end
     
     def error_reporter(job)
-      Update.logger.info "Error #{job.error.inspect})"
+      Update.logger.info "#{[__FILE__,__LINE__].join(':')} -- #{job.error.inspect}\n||=========\n|| Backtrace\n|| " + job.error.backtrace.join("\n|| ") + "\n||========="
       socket.puts job.error.inspect
     end
     
@@ -45,7 +47,6 @@ class Target
     }
     
     def spawner(cnt = 0, str="initial")
-      Updater.logger.info "Spawner called at #{ts} (#{str} #{cnt})"
       socket.puts "Spawner called at #{ts} (#{str} #{cnt})"
       load = Update.load
       sleep SIM_WORK[str] || 0.0 unless load > 100 #simulating work

@@ -35,17 +35,22 @@ case @options[:orm].to_sym
     Updater::Setup.client_setup @options
     Updater::Update.orm.setup @options[:database].merge(:logger=>Updater::Update.logger)
 end
+puts "Welcome to the Cascade test"
 
+puts " cleaning up old garbage"
 Updater::Update.clear_all
 
+puts "  Adding error reporter"
 err_rpt = Updater::Update.chain(Target,:error_reporter,[:__job__])
 
-Updater::Update.in(1,Target,:method1)
-Updater::Update.in(2,Target,:spawner,[],:failure=>err_rpt)
+puts "  Adding the intial cascade jobs"
+Updater::Update.in(3,Target,:method1, [], :failure=>err_rpt)
+Updater::Update.in(5,Target,:spawner,[],:failure=>err_rpt)
 
 begin
   socket = 'cascade.sock'
   File.unlink socket if File.exists? socket
+  puts "Return Message Socket open"
   server = UNIXServer.new(socket)
   sockets = [server]
   @continue = true
@@ -56,7 +61,7 @@ begin
     ready = ready.first
     if ready.respond_to?(:accept)
       begin
-        puts "Opened Socket Connection"
+        puts "  Opened socket connection"
         sockets << server.accept_nonblock
       rescue Errno::EAGAIN, Errno::EINTR
       end
@@ -64,7 +69,7 @@ begin
       begin
         loop{ print ready.read_nonblock(16 * 1024)}
       rescue EOFError
-        puts "closed scket connection"
+        puts "  closed socket connection"
         sockets.delete ready
         ready.close
       rescue Errno::EAGAIN, Errno::EINTR

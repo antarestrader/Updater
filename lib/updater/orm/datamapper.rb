@@ -76,7 +76,7 @@ module Updater
         end
 
         define_method mode do
-          chains.all(:occasion=>mode)
+          chains.all(:occasion=>mode).map {|job| Updater.new(i.target).tap {|u| u.params = job.params}}
         end
       end
 

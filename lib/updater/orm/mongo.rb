@@ -5,7 +5,7 @@ require 'active_support/core_ext/object/try'
 module Updater
   module ORM
     class Mongo
-      
+            
       FINDER= :get
       ID=:_id
       
@@ -97,7 +97,8 @@ module Updater
           end
           
           def #{mode}=(chain)
-            @#{mode} , @hash[:#{mode}]  = build_chain_arrays([chain].flatten)
+            chain = [chain] unless chain.kind_of? Array
+            @#{mode} , @hash[:#{mode}]  = build_chain_arrays(chain)
             attach_intellegent_insertion(@#{mode},:#{mode},self) if @#{mode}
           end
         EOF
@@ -112,12 +113,13 @@ module Updater
       # and possibly @failure containting all instanciated UpdaterUpdates read to be called
       # or @failure set to nil with the chain instanciated on first use.
       def build_chain_arrays(arr, build = false)
-        build ||= arr.any? {|j| Updater::Update === j || Hash === j}
+        build ||= arr.any? {|j| k,_ = j; Updater::Update === k || Hash === k}
         output = arr.inject({:ids=>[],:instances=>[]}) do |accl,j|
           inst, id = rationalize_instance(j)
           if inst.nil? && build
-            debugger
-            inst = Updater::Update.new(self.class.new(collection.find_one(id)))
+            real_id,params = id #id could be an array
+            inst = Updater::Update.new(self.class.new(collection.find_one(real_id)))
+            inst.params = params #set params to the second element of the id array.  If id is scale then  set to nil.
           end
           accl[:ids] << id || inst #id will be nil only if inst has not ben saved.
           accl[:instances] << inst if inst
@@ -139,11 +141,16 @@ module Updater
         val = BSON::ObjectID.fron_string(val) if val.kind_of? String
         case val  #aval is the actual runable object, hval is a BSON::ObjectID that we can put into the Database
           when Updater::Update
-            [val,val.id]
+            val.params ? [val,[val.id,val.params]] : [val,val.id]
           when Hash
             [Updater::Update.new(val),val['_id']]
           when BSON::ObjectID
             [nil,val]
+          when Array
+            rationalize_instance(val[0]).tap do |ret| 
+              ret[0].params = val[1] if ret[0]
+              ret[1] = [ret[1],val[1]]
+            end
         end  
       end
       
@@ -239,7 +246,7 @@ module Updater
         end
         
         def queue_time
-          nxt = @collection.find_one({:time=>{'$gt'=>3,'$lt'=>4}, :lock_name=>'foobar'}, :sort=>[[:time, :asc]], :fields=>[:time])
+          nxt = @collection.find_one({:lock_name=>nil, :time=>{'$ne'=>nil}}, :sort=>[[:time, :asc]], :fields=>[:time])
           return nil unless nxt
           return 0 if nxt['time'] <= tnow
           return nxt['time'] - tnow

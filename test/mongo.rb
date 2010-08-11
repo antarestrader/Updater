@@ -31,14 +31,17 @@ Update.orm.setup :database=>'test', :logger=>logger
 Update.clear_all
 
 err_rpt = Updater::Update.chain(Target,:error_reporter,[:__job__])
+err_rpt.params = {:foo=>:bar}
 
-Update.immidiate(Target, :method1,[], :failure=>err_rpt)
+Update.in(20*60,Target, :method1,[], :failure=>err_rpt)
 
-u = Update.orm.lock_next(worker)
-
-fs = u.failure
+h = Update.orm.collection.find_one(:time=>{'$exists'=>true})
+u = Update.orm.new(h)
 debugger
+fs = u.failure
 
+
+t = Update.orm.queue_time
 Update.work_off(worker)
 
 logger.warn "Finished"
