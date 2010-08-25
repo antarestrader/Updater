@@ -6,7 +6,7 @@ module Updater
   module ORM
     class Mongo
             
-      FINDER= :get
+      FINDER= :find_one
       ID=:_id
       
       def initialize(hash = {})
