@@ -183,10 +183,12 @@ module Updater
         # * :port - the port to connect to.  Default: 27017
         # * :username/:password - if these are present, they will be used to authenticate against the database
         def setup(options)
-          logger ||= options[:logger]
-          raise ArgumentError, "Must spesify the name of a databas when setting up Mongo driver" unless options[:database]
+          logger ||= options[:logger] || Update.logger
+          raise ArgumentError, "Must spesify the name of a database when setting up Mongo driver" unless options[:database]
           if options[:database].kind_of? ::Mongo::DB
             @db = options[:database]
+            options[:database] = @db.name
+            logger.info "Updater is using already established connection to #{@db.name}"
           else
             logger.info "Attempting to connect to mongodb at #{[options[:host] || "localhost", options[:port] || 27017].join(':')} database: \"#{options[:database]}\""
             @db = ::Mongo::Connection.new(options[:host] || "localhost", options[:port] || 27017).db(options[:database].to_s)
