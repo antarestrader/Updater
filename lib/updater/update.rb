@@ -6,7 +6,15 @@ module Updater
   class Update
     # Contains the Error class after an error is caught in +run+. Not stored to the database
     attr_reader :error
+    
+    # Contains the underlying ORM instance (eg. ORM::Datamapper or ORM Mongo)
     attr_reader :orm
+    
+    # In order to reduce the proliferation of chained jobs in the queue,
+    # jobs chain request are allowed a params value that will pass 
+    # specific values to a chained method.  When a chained instance is 
+    # created, the job processor will set this value.  It will then be sent
+    # to the target method in plance of '__param__'.  See #sub_args
     attr_accessor :params
     
     #Run the action on this traget compleating any chained actions
@@ -34,25 +42,34 @@ module Updater
       ret
     end
     
+    #see if this method was intended for the underlying ORM layer.
     def method_missing(method, *args)
       @orm.send(method,*args)
     end
     
+    # Determins and if necessary find/creates the target for this instance.
+    # 
+    # Warning: This value is intentionally NOT memoized.  For instance type targets, it will result in a call to the datastore 
+    # (or the recreation of an object) on EACH invocation.  Methods that need to refer to the target more then once should
+    # take care to store this value locally after initial retreavel.
     def target
       target = @orm.finder.nil? ? @orm.target : @orm.target.send(@orm.finder,@orm.finder_args)
       raise TargetMissingError, "Target missing --Class:'#{@orm.target}' Finder:'#{@orm.finder}', Args:'#{@orm.finder_args.inspect}'" unless target
       target
     end
     
+    # orm_inst must be set to an instacne of the class Update.orm
     def initialize(orm_inst)
-      raise ArgumentError if orm_inst.nil?
+      raise ArgumentError if orm_inst.nil? || !orm_inst.kind_of?(orm)
       @orm = orm_inst
     end
     
+    # Rails Compatibility
     def name=(n)
       @orm.name=n
     end
     
+    # Rails Compatibility
     def name
       @orm.name
     end
@@ -66,6 +83,7 @@ module Updater
       id = other.id
     end
     
+    # If this is true, the job will NOT be removed after it is run.  This is usually true for chained Jobs.
     def persistant?
       @orm.persistant
     end
@@ -77,7 +95,31 @@ module Updater
     end
     
   private
-      
+    
+    # == Use and Purpose
+    # Takes a previous job and the original array of arguments form the data store.
+    # It replaced three special values with meta information from Updater.  This is
+    # done to allow chained jobs to respond to specific conditions in the originating
+    # job.
+    #
+    # ==Substitutions
+    # The following strings are replaced with meta information from the calling job
+    # as described below:
+    #
+    # * '__job__': replaced with the instance of Updater::Update that chained into
+    #   this job.  If the job failed (that is raised and error while being run), this
+    #   instance will contain an error field with that error.
+    # * '__params__': this is an optional field of a chain instance.  It allows the 
+    #   chaining job to set specific options for the chained job to use. For example
+    #   a chained job that reschedules the the original job might take an option 
+    #   defining how frequently the job is rescheduled.  This would be passed in 
+    #   the params field.  (See example in Updater::Chained -- Pending!)
+    # * '__self__':  this is simply set to the instance of Updater::Update that is 
+    #   calling the method.  This might be useful for both chained and original
+    #   jobs that find a need to manipulate of inspect that job that called them.
+    #   Without this field, it would be impossible for a method to consistantly 
+    #   determin wether it had been run from a background job or invoked
+    #   direclty by the app.
     def sub_args(job,a)
       a.map do |e| 
         begin
@@ -101,21 +143,48 @@ module Updater
       end# map
     end #def
     
+    # Invoked by the runner with the name of a chain (:success, :failure, :ensure),
+    # this method takes each chained job and runs it to completion. (Depth First Search of the chain tree)
     def run_chain(name)
       chains = @orm.send(name)
       return unless chains
       chains.each do |job|
         job.run(self)
       end
-    rescue NameError
-      puts @orm.inspect
+    rescue NameError 
+      # There have been a number of bugs caused by the @orm instance not being what was expected when
+      # the ORM layer returned a chain.  This error if produced will propigat to the worker where it is caught
+      # and logged, but to prevent a complete crash of the system, it is then ignored and the next job is run.
+      # This is here to help catch and debug this type of error in ORM layers, particularly 3rd party ORMs.
+      self.class.logger.error "Something is wrong with the ORM value in a chained call \n From (%s:%s):\n%s" % [__FILE__,__LINE__,@orm.inspect]
       raise
     end
     
     class << self
       
-      #This attribute must be set to some ORM that will persist the data
+      # This attribute must be set to some ORM that will persist the data.  The value is normally set 
+      # using one of the methods in Updater::Setup.
       attr_accessor :orm
+      
+      # This is the application level default method to call on a class in order to find/create a target 
+      # instance. (e.g find, get, find_one, etc...).  In most circumstances the ORM layer defines an 
+      # appropriate default and this does not need to be explcitly set.  
+      #
+      # MongoDB is one significant exception to this rule.  The Updater Mongo ORM layer uses the
+      # 10gen MongoDB dirver directly without an ORM such as Mongoid or Mongo_Mapper.  If the
+      # application uses ond of thes ORMs #finder_method and #finder_id should be explicitly set.
+      attr_accessor :finder_method
+      
+      # This is the application level default method to call on an instance type target.  It  should 
+      # return a value to be passed to the #finder_method (above) inorder to retrieve the instance
+      # from the datastore.  (eg. id) In most circumstances the ORM layer defines an 
+      # appropriate default and this does not need to be explcitly set.  
+      #
+      # MongoDB is one significant exception to this rule.  The Updater Mongo ORM layer uses the
+      # 10gen MongoDB dirver directly without an ORM such as Mongoid or Mongo_Mapper.  If the
+      # application uses ond of thes ORMs #finder_method and #finder_id should be explicitly set.
+      attr_accessor :finder_id
+      
       
       #remove once Bug is discovered
       def orm=(input)
@@ -126,8 +195,11 @@ module Updater
       # This is an open IO socket that will be writen to when a job is scheduled. If it is unset
       # then @pid is signaled instead.
       attr_accessor :socket
+      
+      # Instance of a conforming logger.  This will be created if it is not explicitly set.
       attr_writer :logger
       
+      # Returns the logger instance.  If it has not been set, a new Logger will be created pointing to STDOUT
       def logger
         @logger ||= Logger.new(STDOUT)
       end
@@ -146,6 +218,7 @@ module Updater
         clear_locks(worker)
       end
       
+      #Ensure that a worker no longer holds any locks.
       def clear_locks(worker); @orm.clear_locks(worker); end
       
       # Request that the target be sent the method with args at the given time.
@@ -199,19 +272,27 @@ module Updater
       # :persistant <true|false> if true the object will not be destroyed after the completion of its run.  By default
       # this is false except when time is nil.
       #
+      # ===Note:
+      # 
+      # Unless finder_args is passed, a non-class target will be asked for its ID value using #finder_id
+      # or if that is not set, then the default value defined in the ORM layer.  Particularly for MongoDB
+      # it is important that #finder_id be set to an appropriate value sence the Updater ORM layer uses
+      # the low level MongoDB driver instead of a more feature complete ORM like Mongoid.
+      #
       # == Examples
       #
       #    Updater.at(Chronic.parse('tomorrow'),Foo,:bar,[]) # will run Foo.bar() tomorrow at midnight
       #    
       #    f = Foo.create
       #    u = Updater.at(Chronic.parse('2 hours form now'),f,:bar,[]) # will run Foo.get(f.id).bar in 2 hours
+      # == See Also
+      # 
+      # +in+, +immidiate+ and +chain+ which share the same arguments and options but treat time differently
       def at(t,target,method = nil,args=[],options={})
         hash = Hash.new
         hash[:time] = t.to_i unless t.nil?
         
-        hash[:target],hash[:finder],hash[:finder_args] = target_for(target)
-        hash[:finder] = options[:finder] || hash[:finder]
-        hash[:finder_args] = options[:finder_args] || hash[:finder_args]
+        hash[:target],hash[:finder],hash[:finder_args] = target_for(target, options)
         
         hash[:method] = method || :perform
         hash[:method_args] = args
@@ -283,7 +364,7 @@ module Updater
       
             #The time class used by Updater.  See time= 
       def time
-        @@time ||= Time
+        @time ||= Time
       end
       
       # By default Updater will use the system time (Time class) to get the current time.  The application
@@ -291,7 +372,7 @@ module Updater
       # allows us to substitute a custom class for Time.  This class must respond with in interger or Time to
       # the #now method.
       def time=(klass)
-        @@time = klass
+        @time = klass
       end
       
       # A filter for all requests that are ready to run, that is they requested to be run before or at time.now
@@ -318,7 +399,7 @@ module Updater
       end
       
       #Remove all scheduled jobs.  Mostly intended for testing, but may also be useful in cases of crashes
-      #or system corruption
+      #or system corruption. removes all pending jobs.
       def clear_all
         @orm.clear_all
       end
@@ -334,20 +415,22 @@ module Updater
       #in another way.
       def pid=(p)
         return @pid = nil unless p #tricky assignment in return
-        @pid = Integer("#{p}")
-        Process::kill 0, @pid
+        @pid = Integer("#{p}") #safety check that prevents a curupted PID file from crashing the system
+        Process::kill 0, @pid #check that the process exists
         @pid
       rescue Errno::ESRCH, ArgumentError
         @pid = nil
         raise ArgumentError, "PID was invalid"
       end
       
+      # The PID of the worker process
       def pid
         @pid
       end
       
     private
       def signal_worker
+        # TODO: If worker process goes down or has to be reset, try to reconnect
         if @socket
           @socket.write '.'
         elsif @pid
@@ -356,12 +439,15 @@ module Updater
       end
       
       # Given some instance return the information needed to recreate that target 
-      def target_for(inst)
+      def target_for(inst,options = {})
         return [inst, nil, nil] if (inst.kind_of?(Class) || inst.kind_of?(Module))
-        [inst.class,@orm::FINDER,inst.send(orm::ID)]
+        [ inst.class, #target's class
+          options[:finder] || @finder_method || orm::FINDER, #method to call on targets class to find/create target
+          options[:finder_args] || inst.send(@finder_id || orm::ID) #value to pass to above method 
+        ]
       end
       
-    end
+    end # class << self
   end #class Update
   
 end #Module Updater
