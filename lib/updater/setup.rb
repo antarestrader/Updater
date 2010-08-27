@@ -39,7 +39,7 @@ module Updater
     
     ROOT = File.dirname(self.config_file || Dir.pwd)
     
-    #extended used for clients who wnat to override parameters
+    #extended used for clients who want to override parameters
     def initialize(file_or_hash, extended = {})
       @options = file_or_hash.kind_of?(Hash) ? file_or_hash : load_file(file_or_hash)
       @options.merge!(extended)

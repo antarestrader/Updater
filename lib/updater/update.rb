@@ -2,7 +2,7 @@ module Updater
   class TargetMissingError < StandardError
   end
 
-  #the basic class that drives updater
+  #The basic class that drives Updater. See Readme for usage information. 
   class Update
     # Contains the Error class after an error is caught in +run+. Not stored to the database
     attr_reader :error
@@ -64,12 +64,12 @@ module Updater
       @orm = orm_inst
     end
     
-    # Rails Compatibility
+    #Jobs may be named to make them easier to find
     def name=(n)
       @orm.name=n
     end
     
-    # Rails Compatibility
+    #Jobs may be named to make them easier to find 
     def name
       @orm.name
     end
@@ -266,7 +266,8 @@ module Updater
       # they are set.  See +for+ for examples
       #
       # :failure, :success,:ensure <Updater::Update instance> an other request to be run when the request compleste.  Usually these
-      # valuses will be created with the +chained+ method.  As an alternative a hash with keys of Updater::Update instances and
+      # valuses will be created with the +chained+ method.  
+      # As an alternative a Hash (OrderedHash in ruby 1.8) with keys of Updater::Update instances and
       # values of Hash may be used.  The hash will be substituted for the '__param__' argument if/when the chained method is called.
       # 
       # :persistant <true|false> if true the object will not be destroyed after the completion of its run.  By default

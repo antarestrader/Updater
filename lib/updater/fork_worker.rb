@@ -382,7 +382,7 @@ module Updater
     # would be to wait until it is ready then run the next job the wake and run it.  There are two difficulties here
     # the first is the need to let the master process know that the worker is alive and has not hung.  We use a 
     # heartbeat file discriptor which we periodically change ctimes on by changing its access mode.  This is
-    # modeled the technique used in the Unicorn web server.  Our difficult is that we must be prepaired for a 
+    # modeled on the technique used in the Unicorn web server.  Our difficult is that we must be prepaired for a 
     # much less consistant load then a web server.  Within a single application there may be periods where jobs
     # pile up and others where there is a compleatly empty queue for hours or days.  There is also the issue of 
     # how long a job may take to run.  Jobs should generally be kept on the order of +timeout+ seconds.
@@ -396,7 +396,7 @@ module Updater
     # the pipe every time one is present.  The +smoke_pipe+ method handles this by attempting to remove a 
     # charactor from the pipe when it is called.
     def wait_for(delay)
-      return unless @continue
+      return unless @continue #we're dead go back to run and break out of the main loop
       delay ||= 356*24*60*60 #delay will be nil if there are no jobs.  Wait a really long time in that case.
       if delay <= 0 #more jobs are immidiatly availible
         smoke_pipe(@stream) 
