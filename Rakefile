@@ -31,6 +31,7 @@ spec = Gem::Specification.new do |s|
   s.add_development_dependency('chronic', '>= 0.2.3')
   s.require_path = 'lib'
   s.bindir = 'bin'
+  s.executables = 'updater'
   s.files = %w(LICENSE README.markdown Rakefile VERSION) + Dir.glob("{lib,spec,bin}/**/*")
   
 end

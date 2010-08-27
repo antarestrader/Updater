@@ -516,3 +516,9 @@ Example: We could replace the `logging_job` above like this
       )
 
 See Also: Once it is started, see the example in Updater::Chains -- pending
+
+Copying
+=======
+
+Updater is written and maintained by John F. Miller. Copyright (c) 2010.
+This software is licenced under the MIT licence.  See LICENCE for details.
