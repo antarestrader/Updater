@@ -60,7 +60,7 @@ module Updater
     
     # orm_inst must be set to an instacne of the class Update.orm
     def initialize(orm_inst)
-      raise ArgumentError if orm_inst.nil? || !orm_inst.kind_of?(orm)
+      raise ArgumentError if orm_inst.nil? || !orm_inst.kind_of?(self.class.orm)
       @orm = orm_inst
     end
     
