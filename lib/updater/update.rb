@@ -470,7 +470,7 @@ module Updater
           else
             logger.debug "Connection Refresh Failed"
             #we are still not able to connect, don't try again for a while
-            @connection_refresh= [[time*2,10*60].min,Time.now]
+            @connection_refresh= [[delay*2,10*60].min,Time.now]
             return false
           end
         end

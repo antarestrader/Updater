@@ -32,7 +32,7 @@ module Updater
       end
       
       def _id=(val)
-        val = BSON::ObjectID.from_string(val.to_s) unless val.kind_of? BSON::ObjectID
+        val = BSON::ObjectId.from_string(val.to_s) unless val.kind_of? BSON::ObjectId
         @hash[:_id] = val
       end
       
@@ -106,10 +106,10 @@ module Updater
       
     private
       # this method is calld from he chain asignment methods eg. failure=(chain) 
-      # chain is an array which may contain BSON::ObjectID's or Updater::Update's or both
-      # For BSON::ObjectID's we cannot initialize them as this could leed to infinate loops.
+      # chain is an array which may contain BSON::ObjectId's or Updater::Update's or both
+      # For BSON::ObjectId's we cannot initialize them as this could leed to infinate loops.
       # (an object pool would solve this problem, but feels like overkill)
-      # The final result must be a @hash containing all the BSON::ObjectID' (forign keys)
+      # The final result must be a @hash containing all the BSON::ObjectId' (forign keys)
       # and possibly @failure containting all instanciated UpdaterUpdates read to be called
       # or @failure set to nil with the chain instanciated on first use.
       def build_chain_arrays(arr, build = false)
@@ -131,20 +131,20 @@ module Updater
         [nil,output[:ids]]
       end
       
-      # This method takes something that may be a reference to an instance(BSON::ObjectID/String),
+      # This method takes something that may be a reference to an instance(BSON::ObjectId/String),
       # an instance its self (Updater::Update), or a Hash 
-      # and returns a touple of the  Updater::Update,BSON::ObjectID.
-      # This method will bot instanciate object from BSON::ObjectID's
+      # and returns a touple of the  Updater::Update,BSON::ObjectId.
+      # This method will bot instanciate object from BSON::ObjectId's
       # nor will it save Hashes inorder to obtain an ID (it will creat a new Updater::Update from the hash).
       # Instead it will return nil in the appropriate place.
       def rationalize_instance(val)
-        val = BSON::ObjectID.fron_string(val) if val.kind_of? String
-        case val  #aval is the actual runable object, hval is a BSON::ObjectID that we can put into the Database
+        val = BSON::ObjectId.fron_string(val) if val.kind_of? String
+        case val  #aval is the actual runable object, hval is a BSON::ObjectId that we can put into the Database
           when Updater::Update
             val.params ? [val,[val.id,val.params]] : [val,val.id]
           when Hash
             [Updater::Update.new(val),val['_id']]
-          when BSON::ObjectID
+          when BSON::ObjectId
             [nil,val]
           when Array
             rationalize_instance(val[0]).tap do |ret| 
@@ -227,7 +227,7 @@ module Updater
         end 
         
         def get(id)
-          id = BSON::ObjectID.from_string(id) if id.kind_of? String
+          id = BSON::ObjectId.from_string(id) if id.kind_of? String
           new(@collection.find_one(id))
         end
         
