@@ -5,3 +5,4 @@ module Updater
 end
 
 require 'updater/update.rb'
+require 'updater/setup.rb'

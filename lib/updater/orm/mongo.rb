@@ -59,7 +59,7 @@ module Updater
             job
           end
         end
-        _id = self.class.collection.save @hash
+        _id = self.class.collection.save(@hash, :safe=>true)
       end
       
       def destroy
@@ -249,6 +249,7 @@ module Updater
         
         def queue_time
           nxt = @collection.find_one({:lock_name=>nil, :time=>{'$ne'=>nil}}, :sort=>[[:time, :asc]], :fields=>[:time])
+          logger.debug {"  the queue is empty"} unless nxt
           return nil unless nxt
           return 0 if nxt['time'] <= tnow
           return nxt['time'] - tnow

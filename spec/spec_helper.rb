@@ -8,7 +8,7 @@ require "dm-core"
 require 'dm-migrations'
 
 require 'updater'
-#require 'updater/thread_worker'
+require 'updater/thread_worker'
 require 'updater/fork_worker'
 require 'updater/orm/datamapper'
 

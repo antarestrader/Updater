@@ -212,6 +212,8 @@ module Updater
         if inst
           worker.logger.debug "  running job #{inst.id}" 
           new(inst).run
+        else
+          worker.logger.debug "  could not find a ready job in the datastore" 
         end
         @orm.queue_time
       ensure
@@ -405,6 +407,9 @@ module Updater
         @orm.clear_all
       end
       
+      # The name of the file to look for information if we loose the server  
+      attr_accessor :config_file
+      
       #Sets the process id of the worker process if known.  If this 
       #is set then an attempt will be made to signal the worker any
       #time a new update is made.
@@ -431,12 +436,46 @@ module Updater
       
     private
       def signal_worker
-        # TODO: If worker process goes down or has to be reset, try to reconnect
-        if @socket
-          @socket.write '.'
-        elsif @pid
-          Process::kill "USR2", @pid
+        errored = false
+        begin
+          if @socket
+            @socket.write '.'
+            logger.debug "Signaled Master Process Via Socket"
+          elsif @pid
+            Process::kill "USR2", @pid
+            logger.debug "Signaled Master Process Via PID"
+          else
+            signal_worker if connection_refresh
+          end
+        rescue SystemCallError
+          logger.warn "Lost Client Connection to Updater Server"
+          if connection_refresh && !errored
+            errored = true
+            retry
+          end
         end
+      end
+      
+      def connection_refresh
+        logger.debug "Connection Refresh Attempted"
+        @socket.close if @socket
+        @socket = nil; @pid = nil #assume the old server died
+        @connection_refresh ||= [1,Time.now-1]
+        delay, time = @connection_refresh
+        if Time.now >= time+delay
+          Setup.new(@config_file, :logger=>logger).client_setup
+          if @pid || @socket #assume we were successful and retry
+            @connection_refresh = nil 
+            return true
+          else
+            logger.debug "Connection Refresh Failed"
+            #we are still not able to connect, don't try again for a while
+            @connection_refresh= [[time*2,10*60].min,Time.now]
+            return false
+          end
+        end
+        logger.debug "Connection Refresh Waiting until #{time+delay}"
+        return false
       end
       
       # Given some instance return the information needed to recreate that target 

@@ -13,7 +13,7 @@ describe Update do
 
 end
 
-context "Gemspec: " do
+describe "Gemspec: " do
   it"should match version" do
     gs = File.open(File.join(ROOT,'updater.gemspec')) do |f|
       eval f.read

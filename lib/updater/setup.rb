@@ -6,26 +6,33 @@ require 'erb'
 module Updater
   class Setup
     class << self
+      #start a new server
       def start(options={})
         new(config_file(options), options).start
       end
       
+      #stop the server
       def stop(options={})
         new(config_file(options), options).stop
       end
       
+      # Used for testing.  Will run through the entire setup process, but
+      # not actually start the server, but will log the resulting options.
       def noop(options={})
         new(config_file(options), options).noop
       end
       
+      # Connect a client to a server
       def client_setup(options = {})
         new(config_file(options), options).client_setup
       end
       
+      # pendeing
       def monitor
         
       end
-          
+      
+      # Retruns tha locaion of the config file. 
       def config_file(options = {})
         if options[:config_file] && File.exists?(options[:config_file])
           options[:config_file]
@@ -48,7 +55,7 @@ module Updater
       @logger = @options[:logger] || Logger.new(@options[:log_file] || STDOUT)
       level = Logger::SEV_LABEL.index(@options[:log_level].upcase) if @options[:log_level]
       @logger.level = level || Logger::WARN unless @options[:logger] #only set this if we were not handed a logger
-      @logger.debug "Debugging output enabled"
+      @logger.debug "Debugging output enabled" unless @options[:logger]
       Update.logger = @logger
     end
     
@@ -80,25 +87,41 @@ module Updater
       @logger.info "Updater Client is being initialized..."
       set_orm
       
-      if @options[:socket] && File.exists?(@options[:socket])
-        @logger.debug "Using UNIX Socket \"#{@options[:socket]}\""
-        Updater::Update.socket = UNIXSocket.new(@options[:socket])
-      elsif @options[:udp]
-        socket = UDPSocket.new()
-        socket.connect(@options[:host],@options[:udp])
-        Updater::Update.socket = socket
-      elsif @options[:tcp]
-        Updater::Update.socket = TCPSocket.new(@options[:host],@options[:tcp])
-      elsif @options[:remote]
-        raise NotImplimentedError #For future Authenticated Http Rest Server
-      end
+      Updater::Update.socket = socket_for_client
       
       #set PID
       if File.exists? @options[:pid_file]
         Updater::Update.pid = File.read(@options[:pid_file]).strip
       end
       
-      
+      Updater::Update.config_file = @config_file
+    end
+    
+    def socket_for_client
+      if @options[:socket] && File.exists?(@options[:socket])
+        @logger.debug "Using UNIX Socket \"#{@options[:socket]}\""
+        return UNIXSocket.new(@options[:socket]) if File.exists?(@options[:socket]) && File.stat(@options[:socket]).socket?
+      end
+      if @options[:udp]
+        socket = UDPSocket.new()
+        socket.connect(@options[:host],@options[:udp])
+        begin
+          socket.write '.' #must test UDP sockets
+          return socket
+        rescue Errno::ECONNREFUSED
+        end
+      end
+      if @options[:tcp]
+        begin
+          return TCPSocket.new(@options[:host],@options[:tcp])
+        rescue Errno::ECONNREFUSED
+        end
+      end
+      if @options[:remote]
+        return nil
+        raise NotImplimentedError #For future Authenticated Http Rest Server
+      end
+      return nil
     end
     
     private

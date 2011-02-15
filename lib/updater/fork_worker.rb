@@ -73,6 +73,7 @@ module Updater
             stop(false)
             false
           when :USR2, :DATA #wake up a child and get to work
+            logger.info {"Master Process recieved job ready signal"}
             @pipe.last.write_nonblock('.')
             true
           when :TTIN
@@ -142,7 +143,7 @@ module Updater
           timeout = calc_timeout
           logger.debug { "Sleeping for #{timeout}" }
           ready, _1, _2 = IO.select(@wakeup_set, nil, nil, timeout)
-          return unless ready && ready.first #timeout hit,  just wakeup and run maintance
+          return unless ready && ready.first #timeout hit or self_pipe alerted,  just wakeup and run maintance
           add_connection(ready.first) and return if ready.first.respond_to?(:accept) #open a new incomming connection 
           @signal_queue << :DATA unless ready.first == @self_pipe.first
           loop {ready.first.read_nonblock(16 * 1024)}
