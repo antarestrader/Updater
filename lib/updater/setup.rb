@@ -89,12 +89,16 @@ module Updater
       
       Updater::Update.socket = socket_for_client
       
+      
+      init_orm
+      
       #set PID
       if File.exists? @options[:pid_file]
         Updater::Update.pid = File.read(@options[:pid_file]).strip
       end
       
       Updater::Update.config_file = @config_file
+      self
     end
     
     def socket_for_client

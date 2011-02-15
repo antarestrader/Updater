@@ -268,6 +268,14 @@ module Updater
           @collection.update({:lock_name=>worker.name},{'$unset'=>{:lock_name=>1}},:multi=>true)
         end
         
+        def for(target,finder,args,name)
+          if name
+            @collection.find(:target=>target.to_s, :finder_args=>args,:name=>name)
+          else
+            @collection.find(:target=>target.to_s, :finder_args=>args)
+          end
+        end
+        
         private
         def tnow
           Updater::Update.time.now.to_i
