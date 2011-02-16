@@ -6,6 +6,7 @@ require 'erb'
 module Updater
   class Setup
     class << self
+      attr_accessor :init
       #start a new server
       def start(options={})
         new(config_file(options), options).start
@@ -152,6 +153,8 @@ module Updater
     end
     
     def init_orm
+      return false if self.class.init
+      self.class.init = true
       default_options = {:adapter=>'sqlite3', :database=>'./default.db'}
       Updater::Update.orm.setup((@options[:database] || @options[:orm_setup] || default_options).merge(:logger=>@logger))
     end
