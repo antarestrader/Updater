@@ -1,7 +1,6 @@
 require 'rubygems'
 require 'rake/gempackagetask'
-gem 'rspec', '=1.3.0'
-require 'spec/rake/spectask'
+require 'rspec/core/rake_task'
 
 
 VERSION_FILE = File.join(File.dirname(__FILE__), 'VERSION')
@@ -26,7 +25,7 @@ spec = Gem::Specification.new do |s|
   s.email = EMAIL
   s.homepage = HOMEPAGE
   s.add_development_dependency('datamapper', '>= 0.10.2')
-  s.add_development_dependency('rspec', '=1.3.0')
+  s.add_development_dependency('rspec', '>= 2.0.0')
   s.add_development_dependency('timecop', '>= 0.2.1')
   s.add_development_dependency('chronic', '>= 0.2.3')
   s.require_path = 'lib'
@@ -40,21 +39,21 @@ Rake::GemPackageTask.new(spec) do |pkg|
   pkg.gem_spec = spec
 end
 
-Spec::Rake::SpecTask.new do |t|
-  t.warning = false
+RSpec::Core::RakeTask.new do |t|
+  ruby_opts="-w"
   t.rcov = false
 end
 
-Spec::Rake::SpecTask.new do |t|
+RSpec::Core::RakeTask.new do |t|
   t.name="failing"
   #todo Make this run only failing specs
-  t.warning = false
+  ruby_opts="-w"
   t.rcov = false
 end
 
-Spec::Rake::SpecTask.new do |t|
+RSpec::Core::RakeTask.new do |t|
   t.name="rcov"
-  t.warning = false
+  ruby_opts="-w"
   t.rcov = true
 end
 
