@@ -12,10 +12,7 @@ require 'updater/thread_worker'
 require 'updater/fork_worker'
 require 'updater/orm/datamapper'
 
-Updater::Update.orm = Updater::ORM::DataMapper
-
-DataMapper.setup(:default, 'sqlite3::memory:')
-DataMapper.auto_migrate!
+Updater::Setup.test_setup
 
 require 'timecop'
 require 'chronic'

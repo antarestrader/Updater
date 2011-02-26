@@ -175,6 +175,7 @@ describe ForkWorker do
     
     it "should do maintance when the queue is empty" do
       ForkWorker.should_receive(:murder_lazy_workers)
+      ForkWorker.should_receive(:antisipate_workload)
       ForkWorker.should_receive(:maintain_worker_count)
       ForkWorker.should_receive(:master_sleep)
       

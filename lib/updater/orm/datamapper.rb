@@ -76,7 +76,7 @@ module Updater
         end
 
         define_method mode do
-          chains.all(:occasion=>mode).map {|job| Updater.new(i.target).tap {|u| u.params = job.params}}
+          chains.all(:occasion=>mode).map {|job| Update.new(job.target).tap {|u| u.params = job.params}}
         end
       end
 
@@ -154,7 +154,9 @@ module Updater
         #For the server only, setup the connection to the database
         def setup(options)
           ::DataMapper.logger = options.delete(:logger)
+          auto_migrate = options.delete(:auto_migrate)
           ::DataMapper.setup(:default,options)
+          ::DataMapper.auto_migrate! if auto_migrate
         end
         
         # For pooled connections it is necessary to empty the pool of the parents connections so that they

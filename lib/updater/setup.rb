@@ -28,6 +28,10 @@ module Updater
         new(config_file(options), options).client_setup
       end
       
+      def test_setup(options = {})
+        new(options).test_setup
+      end
+      
       # pendeing
       def monitor
         
@@ -84,14 +88,14 @@ module Updater
     end
     
     # The client is responcible for loading classes and making connections.  We will simply setup the Updater spesifics.
-    def client_setup
-      @logger.info "Updater Client is being initialized..."
+    def client_setup(init = true)
+      @logger.info "Updater Client is being initialized... (#{__FILE__}:#{__LINE__})"
+      @logger.debug "  Call Stack:\n - #{caller[0..3].join("\n - ")}"
       set_orm
       
       Updater::Update.socket = socket_for_client
       
-      
-      init_orm
+      init_orm if init
       
       #set PID
       if File.exists? @options[:pid_file]
@@ -99,6 +103,16 @@ module Updater
       end
       
       Updater::Update.config_file = @config_file
+      self
+    end
+    
+    def test_setup
+      set_orm
+      @options[:orm_setup] ||= {:adapter=>'sqlite3', :database=>':memory:', :auto_migrate=>true}
+      init_orm
+      
+      Updater::Update.socket = @options[:socket] ||= File.open('/dev/null','w')
+      
       self
     end
     
@@ -209,7 +223,7 @@ module Updater
       #Log PID
       File.open(@options[:pid_file],'w') { |f| f.write(Process.pid.to_s)}
       
-      client_setup
+      client_setup(false)
       
       #start Worker
       worker = @options[:worker] || 'fork'  #todo make this line windows safe

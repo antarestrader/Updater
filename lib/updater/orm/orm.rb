@@ -110,6 +110,14 @@ module Updater
       # candidates. 
       FINDER= nil
       
+      #If there are circumstances here the default FINDER might need to be overwritten 
+      #this method should return the overwritten value, otherwise it should default to 
+      #FINDER.  How this gets overwritten is ORM spesific, but a #finder= method seems
+      #to be an obvious choice.
+      def finder
+        FINDER
+      end
+      
       # every ORM should set this to a method when called on an object producted by
       # that ORM will give a value that can be passed to the FINDER method to retrieve
       # the object from the datastore.  :id, _id, or :key are likely candidates

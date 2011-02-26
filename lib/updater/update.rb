@@ -172,7 +172,7 @@ module Updater
       #
       # MongoDB is one significant exception to this rule.  The Updater Mongo ORM layer uses the
       # 10gen MongoDB dirver directly without an ORM such as Mongoid or Mongo_Mapper.  If the
-      # application uses ond of thes ORMs #finder_method and #finder_id should be explicitly set.
+      # application uses one of thes ORMs #finder_method and #finder_id should be explicitly set.
       attr_accessor :finder_method
       
       # This is the application level default method to call on an instance type target.  It  should 
