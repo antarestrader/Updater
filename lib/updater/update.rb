@@ -480,7 +480,7 @@ module Updater
       
       # Given some instance return the information needed to recreate that target 
       def target_for(inst,options = {})
-        return [inst, nil, nil] if (inst.kind_of?(Class) || inst.kind_of?(Module))
+        return [inst, options[:finder], options[:finder_args]] if (inst.kind_of?(Class) || inst.kind_of?(Module))
         [ inst.class, #target's class
           options[:finder] || @finder_method || orm::FINDER, #method to call on targets class to find/create target
           options[:finder_args] || inst.send(@finder_id || orm::ID) #value to pass to above method 

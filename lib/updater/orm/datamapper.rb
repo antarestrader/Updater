@@ -31,6 +31,10 @@ module Updater
       
       has n, :chains, :model=>'Updater::ORM::DMChained', :child_key=>[:caller_id]
       
+      def method
+        self[:method]
+      end
+      
       #attempt to lock this record for the worker
       def lock(worker)
         return true if locked? && locked_by == worker.name

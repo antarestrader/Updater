@@ -17,7 +17,8 @@ describe "Special Parameter Substitution" do
   
   it "should substitute __params__ with params" do
     Foo.should_receive(:chained).with(anything(),:arg2,anything(), 'job params')
-    @u.run(:arg1,:arg2)
+    @u.params = :arg2
+    @u.run(:arg1)
   end
   
   it "should substitute __self__ with the current job" do

@@ -6,6 +6,11 @@ require  File.join( File.dirname(__FILE__),  "fooclass" )
 
 describe "named request" do
   
+    before :all do
+      Foo.auto_migrate!
+      Updater::Setup.test_setup
+    end
+  
   before(:each) do
     Foo.all.destroy!
     Update.clear_all

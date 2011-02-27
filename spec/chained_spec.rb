@@ -11,7 +11,7 @@ describe "Chained Methods:" do
     Foo.all.destroy!
     @u = Update.chain(Foo,:chained,[:__job__,:__params__])
     @v = Update.chain(Foo,:chained2,[:__job__,:__params__])
-    pending "Chained Worker not implimented in datamapper,  Waiting form ORM code refactor"
+    #pending "Chained Worker not implimented in datamapper,  Waiting form ORM code refactor"
   end
   
   [:failure, :success, :ensure].each do |mode|

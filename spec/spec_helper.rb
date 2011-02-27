@@ -12,9 +12,7 @@ require 'updater/thread_worker'
 require 'updater/fork_worker'
 require 'updater/orm/datamapper'
 
-Updater::Setup.test_setup
+Updater::Setup.test_setup(:database=>{:adapter=>'sqlite3', :database=>'./default.db', :auto_migrate=>true})
 
 require 'timecop'
 require 'chronic'
-
-
