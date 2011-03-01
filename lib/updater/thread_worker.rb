@@ -9,6 +9,7 @@ module Updater
   class ThreadWorker
     attr_accessor :pid
     attr_accessor :name
+    attr_accessor :logger
     
     def initialize(options={})
       @quiet = options[:quiet]
@@ -51,6 +52,10 @@ module Updater
         say " ~~ Restarting Job Loop"
         @t = run_job_loop
       end
+    end
+    
+    def logger
+      @logger ||= Logger.new(nil)
     end
     
   private

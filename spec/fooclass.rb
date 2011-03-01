@@ -1,18 +1,49 @@
-
-  class Foo
-    include DataMapper::Resource
-    
-    property :id, Serial
-    property :name, String
-    
-    def bar(*args)
-      Foo.bar(:instance,*args)
+class Foo
+  class << self
+    def index
+      @index ||= 0
+      @index += 1
     end
     
-    def self.bar(*args) 
-      
+    def create(*args)
+      new(*args).tap {|r| r.save}
+    end
+    
+    def storage
+      @storage ||= {}
+    end
+    
+    def find(id)
+      storage[id]
+    end
+    
+    def reset
+      @storage = {}
+    end
+    
+    def count
+      storage.length
     end
     
   end
-
-Foo.auto_migrate!
+  attr_reader :id
+  attr_accessor :name
+  
+  def bar(*args)
+    Foo.bar(:instance,*args)
+  end
+  
+  def self.bar(*args) 
+    
+  end
+  
+  def initialize(hash = {})
+    @id = Foo.index
+    @name = hash[:name]
+  end
+  
+  def save
+    Foo.storage[self.id] = self
+  end
+  
+end

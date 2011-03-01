@@ -1,5 +1,6 @@
 require "dm-core"
 require "dm-types"
+require "dm-migrations"
 
 module Updater
   module ORM
@@ -161,6 +162,14 @@ module Updater
           auto_migrate = options.delete(:auto_migrate)
           ::DataMapper.setup(:default,options)
           ::DataMapper.auto_migrate! if auto_migrate
+        end
+        
+        def logger
+          ::DataMapper.logger
+        end
+        
+        def logger=(input)
+          ::DataMapper.logger = input
         end
         
         # For pooled connections it is necessary to empty the pool of the parents connections so that they

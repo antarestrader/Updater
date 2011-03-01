@@ -108,6 +108,7 @@ module Updater
     
     def test_setup
       set_orm
+      @options[:orm] ||= 'mock'
       @options[:orm_setup] ||= {:adapter=>'sqlite3', :database=>':memory:', :auto_migrate=>true}
       init_orm
       

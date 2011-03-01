@@ -71,7 +71,16 @@ module Updater
       end
       
       def lock(worker)
-        raise NotImplimentedError, "Use lock_next"
+          return true if @lock_name && @lock_name == worker.name
+          hash = Hash.new
+          hash['findandmodify'] = self.class.collection.name
+          hash['query'] = {:_id=>id,:lock_name=>nil}
+          hash['update'] = {'$set'=>{:lock_name=>worker.name}}
+          hash['new'] = true
+
+          ret = self.class.db.command hash, :check_response=>false
+          @lock_name = worker.name if ret['ok'] == 1
+          return ret['ok'] == 1
       end
       
       # Non API Standard.  This method returns the collection used by this instance.
@@ -102,6 +111,10 @@ module Updater
             attach_intellegent_insertion(@#{mode},:#{mode},self) if @#{mode}
           end
         EOF
+      end
+      
+      def ==(other)
+        id == other.id
       end
       
     private
@@ -228,11 +241,15 @@ module Updater
         
         def get(id)
           id = BSON::ObjectId.from_string(id) if id.kind_of? String
-          new(@collection.find_one(id))
+          inst = @collection.find_one(id)
+          inst && new(inst)
         end
         
         def current
-          raise NotImplementedError, "Mongo does not support lazy evaluation"
+          # raise NotImplementedError, "Mongo does not support lazy evaluation"
+          @collection.find(:time=>{'$lte'=>tnow}).map do |x|
+            new(x)
+          end
         end
         
         def current_load

@@ -30,7 +30,7 @@ module Updater
     # always in reference to Updater::Update.time (by default Time).  This value will be
     # nil for chained methods.
     #
-    # target [Class]: The class of the target for this job.  the API spesifies that it must be
+    # target [Class]: The class of the target for this job.  The API spesifies that it must be
     # a Ruby class currently in scope in both the workers' and clients' frames of reference.
     # (see configuration documentation for how to achieve this.)  The writer must accept an
     # actual class, which it may store in the datastore as a string (by calling to_s on it).  The
@@ -109,14 +109,6 @@ module Updater
       # obvious method used to retrive a known instance.  :get or :find are likely
       # candidates. 
       FINDER= nil
-      
-      #If there are circumstances here the default FINDER might need to be overwritten 
-      #this method should return the overwritten value, otherwise it should default to 
-      #FINDER.  How this gets overwritten is ORM spesific, but a #finder= method seems
-      #to be an obvious choice.
-      def finder
-        FINDER
-      end
       
       # every ORM should set this to a method when called on an object producted by
       # that ORM will give a value that can be passed to the FINDER method to retrieve
@@ -240,6 +232,8 @@ module Updater
       end
       
       def after_fork
+        
+      end
       
       # Optional, but strongly recomended.
       #
