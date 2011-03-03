@@ -109,6 +109,21 @@ module Updater
         self.class.storage.delete(id)
       end
       
+      %w{failure success ensure}.each do |mode|
+        eval(<<-EOF, binding ,__FILE__, __LINE__+1)
+          def #{mode}
+            @#{mode} ||= []
+          end
+          
+          def #{mode}=(chain)
+            @#{mode} ||= []
+            chain = [chain] unless chain.kind_of? Array
+            @#{mode} += chain
+            # attach_intellegent_insertion(@#{mode},:#{mode},self) if @#{mode}
+          end
+        EOF
+      end
+      
     end
   end
 end

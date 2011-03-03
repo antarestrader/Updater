@@ -231,7 +231,7 @@ module Updater
       
       def add_worker(worker_number)
         worker = WorkerMonitor.new(worker_number,Updater::Util.tempio)
-        Update.orm.before_fork
+        Update.orm.before_fork if Update.orm.respond_to? :before_fork
         pid = Process.fork do
           fork_cleanup
           self.new(@pipe,worker).run

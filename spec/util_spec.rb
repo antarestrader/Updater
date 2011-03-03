@@ -1,7 +1,5 @@
 require File.join( File.dirname(__FILE__),  "spec_helper" )
 
-include Updater
-
 describe "Util.tempio" do
   
   it "should return an unlinked file" do

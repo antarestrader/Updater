@@ -12,11 +12,13 @@ shared_examples_for "an orm" do |test_setup|
   
   let(:instance) { described_class.create(@opts) }
   let(:delayed) { described_class.create(@opts.merge(:time =>Updater::Update.time.now.to_i + 25000)) }
+  let(:chained) { Updater::Update.new(described_class.create(@opts.merge(:time =>nil, :persistant=>true))) }
   
   before :all do
     test_setup ||= {}
     test_setup[:logger] ||= Logger.new(STDOUT).tap {|l| l.level = 99}
     described_class.setup(test_setup)
+    Updater::Update.orm = described_class
   end
   
   #Class Methods
@@ -174,6 +176,23 @@ shared_examples_for "an orm" do |test_setup|
       Timecop.freeze do
         delayed
         described_class.queue_time.should == 25000
+      end
+    end
+  end
+  
+  describe "with Chaining" do
+    
+    %w{success failure ensure}.each do |mode|
+      describe mode  do
+        it "should initially be empty" do
+          instance.send(mode).should be_empty
+        end
+        
+        it "should be added to by #{mode}=" do
+          instance.send("#{mode}=", chained).should == chained
+          instance.send(mode).should_not be_empty
+          instance.send(mode).should  include chained
+        end
       end
     end
   end

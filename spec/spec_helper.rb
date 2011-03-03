@@ -13,7 +13,7 @@ require 'updater/fork_worker'
 # require 'updater/orm/datamapper'
 
 # Updater::Setup.test_setup(:database=>{:adapter=>'sqlite3', :database=>'./default.db', :auto_migrate=>true})
-# Updater::Setup.test_setup
+Updater::Setup.test_setup
 
 require  File.join( File.dirname(__FILE__),  "fooclass" )
 require  File.join( File.dirname(__FILE__),  "orm_lint" )

@@ -7,7 +7,7 @@ describe Update do
     Updater::VERSION.should == File.read(File.join(ROOT,'VERSION')).strip
   end 
   
-  it "shuold have its own inspect method" do
+  it "should have its own inspect method" do
     Update.new(Update.orm.new).inspect.should =~ /Updater::Update/
   end
 

@@ -107,9 +107,8 @@ module Updater
     end
     
     def test_setup
+      @options[:orm] ||= 'mock' 
       set_orm
-      @options[:orm] ||= 'mock'
-      @options[:orm_setup] ||= {:adapter=>'sqlite3', :database=>':memory:', :auto_migrate=>true}
       init_orm
       
       Updater::Update.socket = @options[:socket] ||= File.open('/dev/null','w')
@@ -161,8 +160,8 @@ module Updater
           require 'updater/orm/activerecord'
           Updater::Update.orm = ORM::ActiveRecord
         else
-          require "update/orm/#{orm}"
-          Updater::Update.orm = Object.const_get("ORM").const_get(orm.capitalize)
+          require "updater/orm/#{orm}"
+          Updater::Update.orm = Updater::ORM.const_get(orm.capitalize)
       end
       @logger.info "Data store '#{orm}' selected"
     end

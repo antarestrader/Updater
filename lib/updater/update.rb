@@ -53,7 +53,7 @@ module Updater
     # (or the recreation of an object) on EACH invocation.  Methods that need to refer to the target more then once should
     # take care to store this value locally after initial retreavel.
     def target
-      target = @orm.finder.nil? ? @orm.target : @orm.target.send(@orm.finder,@orm.finder_args)
+      target = @orm.finder.nil? ? @orm.target : @orm.target.send(@orm.finder,*@orm.finder_args)
       raise TargetMissingError, "Target missing --Class:'#{@orm.target}' Finder:'#{@orm.finder}', Args:'#{@orm.finder_args.inspect}'" unless target
       target
     end

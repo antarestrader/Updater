@@ -60,24 +60,26 @@ module Updater
         define_method "#{mode}=" do |chain|
           case chain
             when self.class
-              chains.new(:target=>chain,:occasion=>mode)
+              self.chains.new(:target=>chain,:occasion=>mode)
             when Updater::Update
-              chains.new(:target=>chain.orm,:occasion=>mode)
+              self.chains.new(:target=>chain.orm,:occasion=>mode)
             when Hash
               chain.each do |target, params|
                 target = target.orm if target.kind_of? Updater::Update
-                chains.new(:target=>target,:params=>params, :occasion=>mode)
+                self.chains.new(:target=>target,:params=>params, :occasion=>mode)
               end
             when Array
               chain.each do |target|
                 target = target.orm if target.kind_of? Updater::Update
-                chains.new(:target=>target,:occasion=>mode)
+                self.chains.new(:target=>target,:occasion=>mode)
               end
             when nil
-              chains=[]
+              self.chains=[]
             else
-              raise ArgumentError
+              raise ArgumentError, "Cannot and #{chain.inspect} to a chain (%s:%s)" % [__FILE__,__LINE__]
           end
+          save
+          chain
         end
 
         define_method mode do

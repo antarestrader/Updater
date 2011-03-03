@@ -6,7 +6,7 @@ require  File.join( File.dirname(__FILE__),  "fooclass" )
 
 describe "Job Error Handeling" do
   before(:each) do
-    Foo.all.destroy!
+    Foo.reset
   end
   
   it "should return false when run" do

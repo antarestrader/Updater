@@ -2,13 +2,11 @@ require File.join( File.dirname(__FILE__),  "spec_helper" )
 
 include Updater
 
-require  File.join( File.dirname(__FILE__),  "fooclass" )
-
 describe "running an update" do
   
   before :each do
     Update.clear_all
-    Foo.all.destroy!
+    Foo.reset
   end
   
   it "should call the named method with a class target" do
@@ -28,21 +26,21 @@ describe "running an update" do
     u = Update.immidiate(Foo,:bar,[:arg1,:arg2])
     Foo.should_receive(:bar).with(:arg1,:arg2)
     u.run
-    u.should_not be_saved #NOTE: not a theological statment
+    Update.orm.get(u.orm.id).should be_nil
   end
   
   it "should delete the record if there is a failure" do
     u = Update.immidiate(Foo,:bar,[:arg1,:arg2])
     Foo.should_receive(:bar).with(:arg1,:arg2).and_raise(RuntimeError)
     u.run
-    u.should_not be_saved #NOTE: not a theological statment
+    Update.orm.get(u.orm.id).should be_nil
   end
   
   it "should NOT delete the record if it is a chain record" do
     u = Update.chain(Foo,:bar,[:arg1,:arg2])
     Foo.should_receive(:bar).with(:arg1,:arg2).and_raise(RuntimeError)
     u.run
-    u.should be_saved
+    Update.orm.get(u.orm.id).should_not be_nil
   end
   
 end
