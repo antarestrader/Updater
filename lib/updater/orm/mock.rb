@@ -116,6 +116,7 @@ module Updater
           end
           
           def #{mode}=(chain)
+            return @#{mode} = nil if chain.nil?
             @#{mode} ||= []
             mchain = chain.kind_of?(Array) ? chain : [chain]
             @#{mode} += mchain.map { |x| rationalize_instance(x) }.flatten
@@ -139,7 +140,10 @@ module Updater
             val.map do |target, params|
               rationalize_instance(target).tap{|u| u.params = params}
             end
-            
+          when Array #an array within an array
+            rationalize_instance(val[0]).tap {|u| u.params = val[1]}
+          else
+            raise ArgumentError, "Cannot add #{val.inspect} to a chain (%s:%s)" % [__FILE__,__LINE__]
         end
       end
       

@@ -18,7 +18,7 @@ describe "Chained Methods:" do
   [:failure, :success, :ensure].each do |mode|
     specify "adding '#{mode.to_s}' chain" do
       v = Update.immidiate(Foo,:method1,[],mode=>@u)
-      v.orm.send(mode).should_not be_empty
+      v.send(mode).should_not be_empty
     end
   end
   

@@ -70,15 +70,16 @@ module Updater
               end
             when Array
               chain.each do |target|
+                target, params = target
                 target = target.orm if target.kind_of? Updater::Update
-                self.chains.new(:target=>target,:occasion=>mode)
+                self.chains.new(:target=>target,:occasion=>mode, :params=>params)
               end
             when Integer
               self.chains.new(:target_id=>chain,:occasion=>mode)
             when nil
               self.chains=[]
             else
-              raise ArgumentError, "Cannot and #{chain.inspect} to a chain (%s:%s)" % [__FILE__,__LINE__]
+              raise ArgumentError, "Cannot add #{chain.inspect} to a chain (%s:%s)" % [__FILE__,__LINE__]
           end
           save
           chain

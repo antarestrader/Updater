@@ -215,12 +215,38 @@ shared_examples_for "an orm" do |test_setup|
           instance.send(mode).should == [chained,chained1,chained2]
         end
         
+        specify "nested arrays should set param" do
+          instance.send("#{mode}=", [chained,[chained1, :foo],chained2])
+          puts "%s (%s:%s)" % [instance.send(mode),__FILE__,__LINE__] if instance.send(mode)[1].nil?
+          instance.send(mode)[1].params.should == :foo
+        end
+        
         it "should add multiple items from a hash" do
           instance.send("#{mode}=", {chained=>:foo,chained1=>:bar,chained2=>:baz})
           instance.send(mode).length.should == 3
           instance.send(mode).should == [chained,chained1,chained2]
         end
         
+        it "should set the parameters from a hash" do
+          instance.send("#{mode}=", {chained=>:foo})
+          instance.send(mode)[0].params.should == :foo
+        end
+        
+        it "should clear the chain with nil" do
+          instance.send("#{mode}=", [chained,chained1,chained2])
+          instance.send(mode).length.should == 3
+          instance.send("#{mode}=", nil).should be_nil
+          instance.send(mode).length.should == 0
+        end
+        
+        it "should NOT be a destructive assignment" do
+          instance.send("#{mode}=", [chained,chained1,chained2])
+          instance.send(mode).length.should == 3
+          instance.send("#{mode}=", {chained3=>:foo})
+          instance.send(mode).length.should == 4
+          instance.send(mode)[3].should == chained3
+        end
+ 
       end
     end
   end

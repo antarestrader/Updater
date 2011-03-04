@@ -106,8 +106,11 @@ module Updater
           end
           
           def #{mode}=(chain)
+            return @#{mode} = @hash[:#{mode}] = nil if chain.nil?
             mchain = chain.kind_of?(Array) ? chain : [chain]
-            @#{mode} , @hash[:#{mode}]  = build_chain_arrays(mchain)
+            inst, hsh = build_chain_arrays(mchain)
+            @#{mode} = (@#{mode} || [] ) + inst if inst
+            @hash[:#{mode}] = (@hash[:#{mode}] || []) + hsh
             attach_intellegent_insertion(@#{mode},:#{mode},self) if @#{mode}
             chain
           end
