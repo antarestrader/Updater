@@ -117,11 +117,30 @@ module Updater
           
           def #{mode}=(chain)
             @#{mode} ||= []
-            chain = [chain] unless chain.kind_of? Array
-            @#{mode} += chain
+            mchain = chain.kind_of?(Array) ? chain : [chain]
+            @#{mode} += mchain.map { |x| rationalize_instance(x) }.flatten
             # attach_intellegent_insertion(@#{mode},:#{mode},self) if @#{mode}
+            chain
           end
         EOF
+      end
+      
+      private
+      
+      def rationalize_instance(val)
+        case val
+          when Updater::Update
+            val
+          when self.class
+            Updater::Update.new(val)
+          when Integer
+            Updater::Update.new(self.class.storage[val])
+          when Hash
+            val.map do |target, params|
+              rationalize_instance(target).tap{|u| u.params = params}
+            end
+            
+        end
       end
       
     end

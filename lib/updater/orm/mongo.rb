@@ -106,9 +106,10 @@ module Updater
           end
           
           def #{mode}=(chain)
-            chain = [chain] unless chain.kind_of? Array
-            @#{mode} , @hash[:#{mode}]  = build_chain_arrays(chain)
+            mchain = chain.kind_of?(Array) ? chain : [chain]
+            @#{mode} , @hash[:#{mode}]  = build_chain_arrays(mchain)
             attach_intellegent_insertion(@#{mode},:#{mode},self) if @#{mode}
+            chain
           end
         EOF
       end
@@ -120,13 +121,14 @@ module Updater
     private
       # this method is calld from he chain asignment methods eg. failure=(chain) 
       # chain is an array which may contain BSON::ObjectId's or Updater::Update's or both
-      # For BSON::ObjectId's we cannot initialize them as this could leed to infinate loops.
+      # For BSON::ObjectId's we cannot initialize them as this could lead to infinate loops.
       # (an object pool would solve this problem, but feels like overkill)
       # The final result must be a @hash containing all the BSON::ObjectId' (forign keys)
       # and possibly @failure containting all instanciated UpdaterUpdates read to be called
       # or @failure set to nil with the chain instanciated on first use.
       def build_chain_arrays(arr, build = false)
-        build ||= arr.any? {|j| k,_ = j; Updater::Update === k || Hash === k}
+        arr = arr[0].to_a if arr[0].is_a? Hash
+        build ||= arr.any? {|j| k,_ = j; Updater::Update === k}
         output = arr.inject({:ids=>[],:instances=>[]}) do |accl,j|
           inst, id = rationalize_instance(j)
           if inst.nil? && build
@@ -147,7 +149,7 @@ module Updater
       # This method takes something that may be a reference to an instance(BSON::ObjectId/String),
       # an instance its self (Updater::Update), or a Hash 
       # and returns a touple of the  Updater::Update,BSON::ObjectId.
-      # This method will bot instanciate object from BSON::ObjectId's
+      # This method will not instanciate object from BSON::ObjectId's
       # nor will it save Hashes inorder to obtain an ID (it will creat a new Updater::Update from the hash).
       # Instead it will return nil in the appropriate place.
       def rationalize_instance(val)
@@ -155,8 +157,8 @@ module Updater
         case val  #aval is the actual runable object, hval is a BSON::ObjectId that we can put into the Database
           when Updater::Update
             val.params ? [val,[val.id,val.params]] : [val,val.id]
-          when Hash
-            [Updater::Update.new(val),val['_id']]
+          #~ when Hash # I think this ought to be deleted outright, but I whant to pass the functional test before I delete it.
+            #~ [Updater::Update.new(val),val['_id']]
           when BSON::ObjectId
             [nil,val]
           when Array

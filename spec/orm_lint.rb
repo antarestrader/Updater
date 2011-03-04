@@ -12,7 +12,9 @@ shared_examples_for "an orm" do |test_setup|
   
   let(:instance) { described_class.create(@opts) }
   let(:delayed) { described_class.create(@opts.merge(:time =>Updater::Update.time.now.to_i + 25000)) }
-  let(:chained) { Updater::Update.new(described_class.create(@opts.merge(:time =>nil, :persistant=>true))) }
+  ["","1","2","3"].each do |c|
+    let("chained#{c}".to_sym) { Updater::Update.new(described_class.create(@opts.merge(:time =>nil, :persistant=>true))) }
+  end
   
   before :all do
     test_setup ||= {}
@@ -180,19 +182,45 @@ shared_examples_for "an orm" do |test_setup|
     end
   end
   
-  describe "with Chaining" do
+  describe "with method chaining:" do
     
     %w{success failure ensure}.each do |mode|
       describe mode  do
         it "should initially be empty" do
           instance.send(mode).should be_empty
         end
-        
-        it "should be added to by #{mode}=" do
+      end
+      describe "#{mode}=" do
+        it "should add an Update instance" do
           instance.send("#{mode}=", chained).should == chained
           instance.send(mode).should_not be_empty
-          instance.send(mode).should  include chained
+          instance.send(mode).should include chained
         end
+        
+        it "should add a #{described_class.to_s} instance" do
+          instance.send("#{mode}=", chained.orm).should == chained.orm
+          instance.send(mode).should_not be_empty
+          instance.send(mode).should include chained
+        end
+        
+        it "should add an id" do
+          instance.send("#{mode}=", chained.id).should == chained.id
+          instance.send(mode).should_not be_empty
+          instance.send(mode).should include chained
+        end
+        
+        it "should add multiple items from an array" do
+          instance.send("#{mode}=", [chained,chained1,chained2])
+          instance.send(mode).length.should == 3
+          instance.send(mode).should == [chained,chained1,chained2]
+        end
+        
+        it "should add multiple items from a hash" do
+          instance.send("#{mode}=", {chained=>:foo,chained1=>:bar,chained2=>:baz})
+          instance.send(mode).length.should == 3
+          instance.send(mode).should == [chained,chained1,chained2]
+        end
+        
       end
     end
   end

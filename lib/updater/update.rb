@@ -60,7 +60,10 @@ module Updater
     
     # orm_inst must be set to an instacne of the class Update.orm
     def initialize(orm_inst)
-      raise ArgumentError if orm_inst.nil? || !orm_inst.kind_of?(self.class.orm)
+      if orm_inst.nil? || !orm_inst.kind_of?(self.class.orm)
+        raise ArgumentError, 
+          "Update has been set to use %s but recieved a %s  (%s:%s)\n  recieved %s." % [self.class.orm.inspect, orm_inst.class.inspect, __FILE__,__LINE__-1,orm_inst.inspect]
+      end
       @orm = orm_inst
     end
     

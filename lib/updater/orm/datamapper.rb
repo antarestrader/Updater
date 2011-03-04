@@ -73,6 +73,8 @@ module Updater
                 target = target.orm if target.kind_of? Updater::Update
                 self.chains.new(:target=>target,:occasion=>mode)
               end
+            when Integer
+              self.chains.new(:target_id=>chain,:occasion=>mode)
             when nil
               self.chains=[]
             else
