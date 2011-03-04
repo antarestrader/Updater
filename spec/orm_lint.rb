@@ -20,7 +20,12 @@ shared_examples_for "an orm" do |test_setup|
     test_setup ||= {}
     test_setup[:logger] ||= Logger.new(STDOUT).tap {|l| l.level = 99}
     described_class.setup(test_setup)
+    @old_orm = Updater::Update.orm
     Updater::Update.orm = described_class
+  end
+  
+  after :all do
+    Updater::Update.orm = @old_orm
   end
   
   #Class Methods
