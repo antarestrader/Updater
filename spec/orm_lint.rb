@@ -191,6 +191,9 @@ shared_examples_for "an orm" do |test_setup|
   end
   
   describe "with method chaining:" do
+    before :each do
+      described_class.clear_all
+    end
     
     %w{success failure ensure}.each do |mode|
       describe mode  do
@@ -208,7 +211,7 @@ shared_examples_for "an orm" do |test_setup|
         it "should add a #{described_class.to_s} instance" do
           instance.send("#{mode}=", chained.orm).should == chained.orm
           instance.send(mode).should_not be_empty
-          instance.send(mode).should include chained
+          instance.send(mode).map{|x| x.orm}.should include chained.orm
         end
         
         it "should add an id" do
@@ -261,6 +264,7 @@ shared_examples_for "an orm" do |test_setup|
   
   describe " #for" do
     before :each do
+      described_class.clear_all
       tom_job; dick_job; harry_job
     end
       
@@ -268,7 +272,7 @@ shared_examples_for "an orm" do |test_setup|
       described_class.for(@target.class, @opts[:finder], [@target.id]).should include(tom_job.orm, dick_job.orm, harry_job.orm)
     end
     
-    it "should find a single job by name" do
+    it "should find a job by name" do
       described_class.for(@target.class, @opts[:finder], [@target.id], "dick").first.should == dick_job.orm
     end
     

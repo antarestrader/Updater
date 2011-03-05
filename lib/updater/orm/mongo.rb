@@ -118,11 +118,11 @@ module Updater
       end
       
       def ==(other)
-        id == other.id
+        other.class == self.class && id == other.id
       end
       
     private
-      # this method is calld from he chain asignment methods eg. failure=(chain) 
+      # This method is calleppd from he chain asignment methods eg. failure=(chain) 
       # chain is an array which may contain BSON::ObjectId's or Updater::Update's or both
       # For BSON::ObjectId's we cannot initialize them as this could lead to infinate loops.
       # (an object pool would solve this problem, but feels like overkill)
@@ -131,7 +131,7 @@ module Updater
       # or @failure set to nil with the chain instanciated on first use.
       def build_chain_arrays(arr, build = false)
         arr = arr[0].to_a if arr[0].is_a? Hash
-        build ||= arr.any? {|j| k,_ = j; Updater::Update === k}
+        build ||= arr.any? {|j| k,_ = j; Updater::Update === k || self.class === k}
         output = arr.inject({:ids=>[],:instances=>[]}) do |accl,j|
           inst, id = rationalize_instance(j)
           if inst.nil? && build
@@ -162,6 +162,8 @@ module Updater
             val.params ? [val,[val.id,val.params]] : [val,val.id]
           #~ when Hash # I think this ought to be deleted outright, but I whant to pass the functional test before I delete it.
             #~ [Updater::Update.new(val),val['_id']]
+          when self.class
+            [Updater::Update.new(val), val.id]
           when BSON::ObjectId
             [nil,val]
           when Array
@@ -295,7 +297,7 @@ module Updater
             @collection.find(:target=>target.to_s, :finder_args=>args,:name=>name)
           else
             @collection.find(:target=>target.to_s, :finder_args=>args)
-          end
+          end.map {|x| new(x) }
         end
         
         private
