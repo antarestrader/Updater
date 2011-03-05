@@ -155,7 +155,7 @@ module Updater
           search = all(
               :target=>mytarget,
               :finder=>myfinder,
-              :finder_args=>myfinder_args, 
+              :finder_args=>myfinder_args.to_yaml, 
               :lock_name=>nil
             )
           myname ? search.all(:name=>myname ) : search

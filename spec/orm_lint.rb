@@ -261,7 +261,6 @@ shared_examples_for "an orm" do |test_setup|
   
   describe " #for" do
     before :each do
-      
       tom_job; dick_job; harry_job
     end
       
@@ -271,6 +270,12 @@ shared_examples_for "an orm" do |test_setup|
     
     it "should find a single job by name" do
       described_class.for(@target.class, @opts[:finder], [@target.id], "dick").first.should == dick_job.orm
+    end
+    
+    it "should return an empty array if no job is found" do
+      foo = Foo.create
+      described_class.for(@target.class, @opts[:finder], [@target.id], "john").should be_empty
+      described_class.for(@target.class, @opts[:finder], [foo.id]).should be_empty
     end
     
   end #for
