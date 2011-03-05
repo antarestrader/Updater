@@ -15,6 +15,9 @@ shared_examples_for "an orm" do |test_setup|
   ["","1","2","3"].each do |c|
     let("chained#{c}".to_sym) { Updater::Update.new(described_class.create(@opts.merge(:time =>nil, :persistant=>true))) }
   end
+  %w{tom dick harry}.each do |name|
+    let("#{name}_job".to_sym) { Updater::Update.new(described_class.create(@opts.merge(:name=>name))) }
+  end
   
   before :all do
     test_setup ||= {}
@@ -252,7 +255,23 @@ shared_examples_for "an orm" do |test_setup|
           instance.send(mode)[3].should == chained3
         end
  
-      end
+      end # mode=
+    end # {success, failure, ensure}
+  end #chaining
+  
+  describe " #for" do
+    before :each do
+      
+      tom_job; dick_job; harry_job
     end
-  end
+      
+    it "should find all jobs" do
+      described_class.for(@target.class, @opts[:finder], [@target.id]).should include(tom_job.orm, dick_job.orm, harry_job.orm)
+    end
+    
+    it "should find a single job by name" do
+      described_class.for(@target.class, @opts[:finder], [@target.id], "dick").first.should == dick_job.orm
+    end
+    
+  end #for
 end

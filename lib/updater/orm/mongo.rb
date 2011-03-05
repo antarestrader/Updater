@@ -290,7 +290,7 @@ module Updater
           @collection.update({:lock_name=>worker.name},{'$unset'=>{:lock_name=>1}},:multi=>true)
         end
         
-        def for(target,finder,args,name)
+        def for(target,finder,args,name=nil)
           if name
             @collection.find(:target=>target.to_s, :finder_args=>args,:name=>name)
           else

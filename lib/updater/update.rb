@@ -83,7 +83,7 @@ module Updater
     end
     
     def ==(other)
-      id = other.id
+      other.kind_of?(self.class) && id == other.id 
     end
     
     # If this is true, the job will NOT be removed after it is run.  This is usually true for chained Jobs.

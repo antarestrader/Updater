@@ -71,8 +71,11 @@ module Updater
           @storage = {} 
         end
         
-        def for(mytarget, myfinder, myfinder_args, myname=nil)
-          NotImplementedError
+        def for(target, finder, finder_args, name=nil)
+          @storage.values.find_all do |x|
+            naming = name ? x.name == name : true
+            naming && x.finder == finder && x.finder_args == finder_args && x.target == target
+          end
         end
         
         def storage
