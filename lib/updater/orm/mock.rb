@@ -74,7 +74,7 @@ module Updater
         def for(target, finder, finder_args, name=nil)
           @storage.values.find_all do |x|
             naming = name ? x.name == name : true
-            naming && x.finder == finder && x.finder_args == finder_args && x.target == target
+            naming && x.finder == finder && x.finder_args == finder_args && x.target == target && !x.lock_name
           end
         end
         

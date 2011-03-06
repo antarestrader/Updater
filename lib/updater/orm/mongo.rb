@@ -294,9 +294,20 @@ module Updater
         
         def for(target,finder,args,name=nil)
           if name
-            @collection.find(:target=>target.to_s, :finder_args=>args,:name=>name)
+            @collection.find(
+              :target=>target.to_s, 
+              :finder_args=>args, 
+              :finder=>finder, 
+              :lock_name=>nil,
+              :name=>name
+            )
           else
-            @collection.find(:target=>target.to_s, :finder_args=>args)
+            @collection.find(
+              :target=>target.to_s, 
+              :finder_args=>args, 
+              :finder=>finder, 
+              :lock_name=>nil,
+            )
           end.map {|x| new(x) }
         end
         

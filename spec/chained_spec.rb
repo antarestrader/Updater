@@ -9,7 +9,6 @@ describe "Chained Methods:" do
   before :each do
     Update.clear_all
     Foo.reset
-    pending "ORM Chaining not yet tested"
     @u = Update.chain(Foo,:chained,[:__job__,:__params__])
     @v = Update.chain(Foo,:chained2,[:__job__,:__params__])
     #pending "Chained Worker not implimented in datamapper,  Waiting form ORM code refactor"

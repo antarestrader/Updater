@@ -282,5 +282,11 @@ shared_examples_for "an orm" do |test_setup|
       described_class.for(@target.class, @opts[:finder], [foo.id]).should be_empty
     end
     
+    it "should not return a locked record" do
+      described_class.for(@target.class, @opts[:finder], [@target.id]).should include(tom_job.orm, dick_job.orm, harry_job.orm)
+      tom_job.orm.lock(Struct.new(:name).new('test_worker'))
+      described_class.for(@target.class, @opts[:finder], [@target.id]).should_not include(tom_job.orm)
+    end
+    
   end #for
 end
