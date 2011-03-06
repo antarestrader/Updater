@@ -17,29 +17,6 @@ describe ThreadWorker do
     ThreadWorker.new.name.should be_a String
   end
   
-  describe "loop thread control:" do
-    
-    specify "The loop should run when the worker is started" do
-      pending
-      worker = ThreadWorker.new(:quiet=>true, :name=>"testing")
-      Update.should_receive(:work_off).with(worker).once.and_return(nil)
-      t = Thread.new do
-        worker.start
-      end
-      t.run
-      worker.stop
-      t.kill unless t.join(0.1) #you've got 0.1 seconds to finish or die
-    end
-    
-    specify "The loop should run with USR1 signal" do
-      pending
-      t = Thread.new do
-        worker.start
-      end
-    end
-    
-  end
-  
 end
 
 describe "working off jobs:" do

@@ -34,23 +34,4 @@ describe "Fork Worker Instance" do
     
   end
   
-  describe "#wait_for" do
-    
-    it "should have specs"
-    
-    describe "when there are pending jobs" do
-      
-      it "should NOT wait for a signal"
-      
-      it "should smoke the pipe"
-      
-    end
-    
-    it "should wake as soon as a new job signal is placed on the pipe"
-    
-    
-    it "should run the heartbeat every 'timeout' seconds"
-    
-  end
-  
 end
