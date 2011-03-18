@@ -47,14 +47,22 @@ module Updater
       @orm.send(method,*args)
     end
     
+    def method
+      @orm.method
+    end
+    
     # Determins and if necessary find/creates the target for this instance.
     # 
     # Warning: This value is intentionally NOT memoized.  For instance type targets, it will result in a call to the datastore 
     # (or the recreation of an object) on EACH invocation.  Methods that need to refer to the target more then once should
     # take care to store this value locally after initial retreavel.
     def target
-      target = @orm.finder.nil? ? @orm.target : @orm.target.send(@orm.finder,*@orm.finder_args)
-      raise TargetMissingError, "Target missing --Class:'#{@orm.target}' Finder:'#{@orm.finder}', Args:'#{@orm.finder_args.inspect}'" unless target
+      begin
+        target = @orm.finder.nil? ? @orm.target : @orm.target.send(@orm.finder,*@orm.finder_args)
+        raise NotFoundError unless target
+      rescue
+        raise TargetMissingError, "Target missing --Class:'#{@orm.target}' Finder:'#{@orm.finder}', Args:'#{@orm.finder_args.inspect}'"
+      end
       target
     end
     
@@ -328,14 +336,6 @@ module Updater
         raise
       end
 
-      # Create a new job having the same charistics as the old, except that 'hash' will override the original.
-      def reschedule(update, hash={})
-        new_job = update.orm.dup
-        new_job.update_attributes(hash)
-        new_job.save
-        new(new_job)
-      end
-
       # like +at+ but with time as time.now.  Generally this will be used to run a long running operation in
       # asyncronously in a differen process.  See +at+ for details
       def immidiate(*args)
@@ -368,7 +368,7 @@ module Updater
         name ? ret.first : ret
       end
       
-            #The time class used by Updater.  See time= 
+      #The time class used by Updater.  See time= 
       def time
         @time ||= Time
       end
@@ -486,7 +486,7 @@ module Updater
         return [inst, options[:finder], options[:finder_args]] if (inst.kind_of?(Class) || inst.kind_of?(Module))
         [ inst.class, #target's class
           options[:finder] || @finder_method || orm::FINDER, #method to call on targets class to find/create target
-          options[:finder_args] || inst.send(@finder_id || orm::ID) #value to pass to above method 
+          options[:finder_args] || [inst.send(@finder_id || orm::ID)] #value to pass to above method 
         ]
       end
       
