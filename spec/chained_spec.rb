@@ -2,8 +2,6 @@ require File.join( File.dirname(__FILE__),  "spec_helper" )
 
 include Updater
 
-require  File.join( File.dirname(__FILE__),  "fooclass" )
-
 describe "Chained Methods:" do
   
   before :each do

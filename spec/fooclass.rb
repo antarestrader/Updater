@@ -17,6 +17,8 @@ class Foo
       storage[id]
     end
     
+    alias special_foo_finder find
+    
     def reset
       @storage = {}
     end
@@ -31,6 +33,10 @@ class Foo
   
   def bar(*args)
     Foo.bar(:instance,*args)
+  end
+  
+  def special_foo_identification
+    @id
   end
   
   def self.bar(*args) 

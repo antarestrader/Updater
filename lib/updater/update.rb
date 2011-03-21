@@ -59,7 +59,7 @@ module Updater
     def target
       begin
         target = @orm.finder.nil? ? @orm.target : @orm.target.send(@orm.finder,*@orm.finder_args)
-        raise NotFoundError unless target
+        raise TargetMissingError unless target
       rescue
         raise TargetMissingError, "Target missing --Class:'#{@orm.target}' Finder:'#{@orm.finder}', Args:'#{@orm.finder_args.inspect}'"
       end
@@ -485,8 +485,16 @@ module Updater
       def target_for(inst,options = {})
         return [inst, options[:finder], options[:finder_args]] if (inst.kind_of?(Class) || inst.kind_of?(Module))
         [ inst.class, #target's class
-          options[:finder] || @finder_method || orm::FINDER, #method to call on targets class to find/create target
-          options[:finder_args] || [inst.send(@finder_id || orm::ID)] #value to pass to above method 
+          options[:finder] || #method to call on targets class to find/create target
+            inst.class.respond_to?(:updater_finder_method) && inst.class.updater_finder_method ||
+            @finder_method || 
+            orm::FINDER, 
+          options[:finder_args] || #value to pass to above method #TODO add test to require flattening
+            [inst.send(
+              @finder_id || 
+              inst.class.respond_to?(:updater_id_method) && inst.class.updater_id_method ||
+              orm::ID
+            )] 
         ]
       end
       

@@ -6,3 +6,5 @@ end
 
 require 'updater/update.rb'
 require 'updater/setup.rb'
+require 'updater/chained.rb'
+require 'updater/target.rb'
